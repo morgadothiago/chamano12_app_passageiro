@@ -1,4 +1,12 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(GOOGLE_MAPS_API_KEY=test123 npx expo prebuild --clean)",
+      "Bash(git check-ignore *)",
+      "Bash(xcrun simctl *)"
+    ]
+  },
   "enabledPlugins": {
     "expo@claude-plugins-official": true
   }
