@@ -1,17 +1,34 @@
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function RootLayout() {
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    try {
+      const NavigationBar = require("expo-navigation-bar");
+      NavigationBar.setVisibilityAsync("hidden").catch(() => {});
+    } catch {
+      // módulo nativo indisponível no Expo Go; funciona só em dev client/apk
+    }
+  }, []);
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        />
-      </BottomSheetModalProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <BottomSheetModalProvider>
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+            }}
+          />
+        </BottomSheetModalProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

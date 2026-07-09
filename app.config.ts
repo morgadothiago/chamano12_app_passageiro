@@ -1,10 +1,10 @@
-import type { ExpoConfig } from "expo/config";
+import type { ExpoConfig } from "expo/config"
 
-const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY ?? "";
+const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY ?? ""
 
 const config: ExpoConfig = {
   name: "passageiro-app",
-  slug: "passageiro-app",
+  slug: "chamano12passsageiro-",
   version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/images/logo_App.png",
@@ -24,9 +24,8 @@ const config: ExpoConfig = {
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: "#E6F4FE",
+      backgroundColor: "#101010",
       foregroundImage: "./assets/images/android-icon-foreground.png",
-      backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
     },
     edgeToEdgeEnabled: true,
@@ -45,6 +44,13 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     [
+      "expo-location",
+      {
+        locationWhenInUsePermission:
+          "Usamos sua localizacao para calcular a origem da corrida.",
+      },
+    ],
+    [
       "expo-splash-screen",
       {
         image: "./assets/images/logo_App.png",
@@ -57,10 +63,15 @@ const config: ExpoConfig = {
       },
     ],
   ],
+  extra: {
+    eas: {
+      projectId: "9b5d1919-92d4-4c4c-b6e2-0612e82e3ca0",
+    },
+  },
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
   },
-};
+}
 
-export default config;
+export default config

@@ -1,9 +1,13 @@
-import { TARIFA } from "@/constants/tarifa";
+import { TARIFA_PADRAO, type TarifaConfig } from "@/constants/tarifa";
 
-export function calcularValorCorrida(distanciaKm: number, duracaoMinutos: number) {
-  const valorDistancia = TARIFA.valorPorKm * distanciaKm;
-  const valorTempo = TARIFA.valorPorMinuto * Math.round(duracaoMinutos);
-  const valorTotal = TARIFA.taxaBase + valorDistancia + valorTempo;
+export function calcularValorCorrida(
+  distanciaKm: number,
+  duracaoMinutos: number,
+  tarifa: TarifaConfig = TARIFA_PADRAO
+) {
+  const valorDistancia = tarifa.valorPorKm * distanciaKm;
+  const valorTempo = tarifa.valorPorMinuto * Math.round(duracaoMinutos);
+  const valorTotal = tarifa.taxaBase + valorDistancia + valorTempo;
 
-  return Math.max(valorTotal, TARIFA.valorMinimo);
+  return Math.max(valorTotal, tarifa.valorMinimo);
 }

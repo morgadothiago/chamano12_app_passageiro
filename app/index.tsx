@@ -1,50 +1,23 @@
+import { CardEstimativa } from "@/components/card-estimativa";
+import { FormularioEnderecos } from "@/components/formulario-enderecos";
+import { GatilhoEndereco } from "@/components/gatilho-endereco";
+import { MapaCorrida } from "@/components/mapa-corrida";
+import { ModalNomePassageiro } from "@/components/modal-nome-passageiro";
+import { useEnderecosCorrida } from "@/hooks/use-enderecos-corrida";
+import { useEstimativaCorrida } from "@/hooks/use-estimativa-corrida";
+import { useTecladoAtivo } from "@/hooks/use-teclado-ativo";
+import { decodificarPolilinha } from "@/lib/polilinha";
+import { colors, radius } from "@/lib/theme";
+import { abrirWhatsappMotorista } from "@/lib/whatsapp";
 import BottomSheet, {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
-  BottomSheetTextInput,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useEstimativaCorrida } from "@/hooks/use-estimativa-corrida";
-import {
-  enderecoReverso,
-  geocodificarEndereco,
-  obterLocalizacaoAtual,
-} from "@/lib/localizacao";
-import { decodificarPolilinha } from "@/lib/polilinha";
-import type { Coordenada } from "@/lib/routes";
-import { abrirWhatsappMotorista } from "@/lib/whatsapp";
-
-function useTecladoAtivo() {
-  const [ativo, setAtivo] = useState(false);
-
-  useEffect(() => {
-    const mostrar = Keyboard.addListener("keyboardDidShow", () => setAtivo(true));
-    const esconder = Keyboard.addListener("keyboardDidHide", () => setAtivo(false));
-
-    return () => {
-      mostrar.remove();
-      esconder.remove();
-    };
-  }, []);
-
-  return ativo;
-}
+import { Alert, Keyboard, StyleSheet, View } from "react-native";
+import type MapView from "react-native-maps";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Index() {
   const insets = useSafeAreaInsets();
@@ -54,12 +27,22 @@ export default function Index() {
   const tecladoAtivo = useTecladoAtivo();
 
   const { estimativa, carregando, erro, calcular, limpar } = useEstimativaCorrida();
+  const {
+    enderecoOrigem,
+    enderecoDestino,
+    coordOrigem,
+    coordDestino,
+    buscandoLocalizacao,
+    sugestoesOrigem,
+    sugestoesDestino,
+    handleChangeEnderecoOrigem,
+    handleChangeEnderecoDestino,
+    escolherSugestaoOrigem,
+    escolherSugestaoDestino,
+    usarMinhaLocalizacaoComoOrigem,
+    resolverCoordenadas,
+  } = useEnderecosCorrida();
 
-  const [enderecoOrigem, setEnderecoOrigem] = useState("");
-  const [enderecoDestino, setEnderecoDestino] = useState("");
-  const [coordOrigem, setCoordOrigem] = useState<Coordenada | null>(null);
-  const [coordDestino, setCoordDestino] = useState<Coordenada | null>(null);
-  const [buscandoLocalizacao, setBuscandoLocalizacao] = useState(false);
   const [modalVisivel, setModalVisivel] = useState(false);
   const [nome, setNome] = useState("");
 
@@ -69,6 +52,14 @@ export default function Index() {
 
   const fecharBottomSheet = useCallback(() => {
     bottomSheetRef.current?.close();
+  }, []);
+
+  const abrirModalNome = useCallback(() => {
+    setModalVisivel(true);
+  }, []);
+
+  const fecharModalNome = useCallback(() => {
+    setModalVisivel(false);
   }, []);
 
   const renderBackdrop = useCallback(
@@ -84,13 +75,9 @@ export default function Index() {
     []
   );
 
-  async function usarMinhaLocalizacao() {
-    setBuscandoLocalizacao(true);
+  const usarMinhaLocalizacao = useCallback(async () => {
     try {
-      const coordenada = await obterLocalizacaoAtual();
-      const endereco = await enderecoReverso(coordenada);
-      setCoordOrigem(coordenada);
-      setEnderecoOrigem(endereco);
+      const coordenada = await usarMinhaLocalizacaoComoOrigem();
       mapaRef.current?.animateToRegion({
         ...coordenada,
         latitudeDelta: 0.02,
@@ -98,12 +85,23 @@ export default function Index() {
       });
     } catch (e) {
       Alert.alert("Oopss", e instanceof Error ? e.message : "Erro ao obter localização.");
-    } finally {
-      setBuscandoLocalizacao(false);
     }
-  }
+  }, [usarMinhaLocalizacaoComoOrigem]);
 
-  async function chamarCorrida() {
+  useEffect(() => {
+    usarMinhaLocalizacaoComoOrigem()
+      .then((coordenada) => {
+        mapaRef.current?.animateToRegion({
+          ...coordenada,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        });
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const chamarCorrida = useCallback(async () => {
     if (!enderecoOrigem.trim() || !enderecoDestino.trim()) {
       Alert.alert("Oopss", "Informe origem e destino.");
       return;
@@ -113,10 +111,7 @@ export default function Index() {
     limpar();
 
     try {
-      const origem = coordOrigem ?? (await geocodificarEndereco(enderecoOrigem));
-      const destino = await geocodificarEndereco(enderecoDestino);
-      setCoordOrigem(origem);
-      setCoordDestino(destino);
+      const { origem, destino } = await resolverCoordenadas();
 
       await calcular(origem, destino);
 
@@ -128,9 +123,9 @@ export default function Index() {
     } catch (e) {
       Alert.alert("Oopss", e instanceof Error ? e.message : "Erro ao traçar rota.");
     }
-  }
+  }, [enderecoOrigem, enderecoDestino, resolverCoordenadas, limpar, calcular, fecharBottomSheet]);
 
-  function confirmarChamada() {
+  const confirmarChamada = useCallback(() => {
     if (!nome.trim() || !coordOrigem || !coordDestino || !estimativa) return;
 
     abrirWhatsappMotorista({
@@ -144,59 +139,45 @@ export default function Index() {
 
     setModalVisivel(false);
     setNome("");
-  }
+  }, [nome, coordOrigem, coordDestino, estimativa, enderecoOrigem, enderecoDestino]);
 
-  const rota = estimativa ? decodificarPolilinha(estimativa.polilinha) : [];
+  const handleEnviarNome = useCallback(() => {
+    if (!nome.trim()) {
+      Alert.alert("Oopss", "Digite seu nome para continuar.");
+      return;
+    }
+    confirmarChamada();
+  }, [nome, confirmarChamada]);
+
+  const rota = useMemo(
+    () => (estimativa ? decodificarPolilinha(estimativa.polilinha) : []),
+    [estimativa]
+  );
 
   return (
-    <View style={styles.flex}>
-      <MapView
+    <View style={[styles.flex, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <MapaCorrida
         ref={mapaRef}
-        style={styles.flex}
-        initialRegion={{
-          latitude: -15.7942,
-          longitude: -47.8822,
-          latitudeDelta: 0.1,
-          longitudeDelta: 0.1,
-        }}
-      >
-        {coordOrigem && <Marker coordinate={coordOrigem} title="Origem" pinColor="green" />}
-        {coordDestino && <Marker coordinate={coordDestino} title="Destino" />}
-        {rota.length > 0 && (
-          <Polyline coordinates={rota} strokeColor="#333333" strokeWidth={3} />
-        )}
-      </MapView>
+        coordOrigem={coordOrigem}
+        coordDestino={coordDestino}
+        rota={rota}
+        bottomOffset={estimativa ? 190 : 24}
+        onRecentralizar={usarMinhaLocalizacao}
+      />
 
-      <View
-        style={[styles.inputGatilho, { top: insets.top + 10 }]}
-        pointerEvents={tecladoAtivo ? "none" : "auto"}
-      >
-        <TouchableOpacity activeOpacity={0.7} onPress={abrirBottomSheet}>
-          <Text style={styles.inputGatilhoTexto} numberOfLines={1}>
-            {enderecoDestino ? `Para: ${enderecoDestino}` : "Para onde vamos?"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <GatilhoEndereco
+        enderecoDestino={enderecoDestino}
+        top={insets.top + 12}
+        desabilitado={tecladoAtivo}
+        onPress={abrirBottomSheet}
+      />
 
       {estimativa && (
-        <SafeAreaView
-          edges={["bottom"]}
-          style={styles.cardEstimativa}
-          pointerEvents={tecladoAtivo ? "none" : "auto"}
-        >
-          <Text>Tempo de viagem: {Math.round(estimativa.duracaoMinutos)} minutos</Text>
-          <Text>Distância: {estimativa.distanciaKm.toFixed(1)} km</Text>
-          <Text style={styles.valor}>
-            Valor estimado: R$ {estimativa.valorEstimado.toFixed(2).replace(".", ",")}
-          </Text>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={styles.botao}
-            onPress={() => setModalVisivel(true)}
-          >
-            <Text style={styles.botaoTexto}>Chamar motorista</Text>
-          </TouchableOpacity>
-        </SafeAreaView>
+        <CardEstimativa
+          estimativa={estimativa}
+          desabilitado={tecladoAtivo}
+          onChamarMotorista={abrirModalNome}
+        />
       )}
 
       <BottomSheet
@@ -207,192 +188,48 @@ export default function Index() {
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
         enablePanDownToClose
+        backgroundStyle={styles.sheetFundo}
+        handleIndicatorStyle={styles.sheetHandle}
       >
-        <BottomSheetView style={styles.sheetConteudo}>
-          <Text style={styles.sheetTitulo}>Informe sua viagem</Text>
-
-          <View style={styles.linhaInput}>
-            <BottomSheetTextInput
-              value={enderecoOrigem}
-              onChangeText={(texto) => {
-                setEnderecoOrigem(texto);
-                setCoordOrigem(null);
-              }}
-              placeholder="CEP ou rua de origem"
-              style={[styles.input, styles.inputFlex]}
-            />
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.botaoLocalizacao}
-              onPress={usarMinhaLocalizacao}
-              disabled={buscandoLocalizacao}
-            >
-              {buscandoLocalizacao ? (
-                <ActivityIndicator color="#ffffff" size="small" />
-              ) : (
-                <Text style={styles.botaoLocalizacaoTexto}>📍</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          <BottomSheetTextInput
-            value={enderecoDestino}
-            onChangeText={(texto) => {
-              setEnderecoDestino(texto);
-              setCoordDestino(null);
-            }}
-            placeholder="CEP ou rua de destino"
-            style={styles.input}
+        <BottomSheetView style={styles.flex}>
+          <FormularioEnderecos
+            enderecoOrigem={enderecoOrigem}
+            enderecoDestino={enderecoDestino}
+            buscandoLocalizacao={buscandoLocalizacao}
+            carregando={carregando}
+            erro={erro}
+            sugestoesOrigem={sugestoesOrigem}
+            sugestoesDestino={sugestoesDestino}
+            onChangeEnderecoOrigem={handleChangeEnderecoOrigem}
+            onChangeEnderecoDestino={handleChangeEnderecoDestino}
+            onSelecionarSugestaoOrigem={escolherSugestaoOrigem}
+            onSelecionarSugestaoDestino={escolherSugestaoDestino}
+            onUsarMinhaLocalizacao={usarMinhaLocalizacao}
+            onChamarCorrida={chamarCorrida}
           />
-
-          {erro && <Text style={styles.erro}>{erro}</Text>}
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={styles.botaoTracar}
-            onPress={chamarCorrida}
-            disabled={carregando}
-          >
-            {carregando ? (
-              <ActivityIndicator color="#ffffff" size="small" />
-            ) : (
-              <Text style={styles.botaoTexto}>Chamar</Text>
-            )}
-          </TouchableOpacity>
         </BottomSheetView>
       </BottomSheet>
 
-      <Modal visible={modalVisivel} transparent animationType="fade">
-        <KeyboardAvoidingView
-          style={styles.modalFundo}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitulo}>Qual seu nome?</Text>
-            <TextInput
-              value={nome}
-              onChangeText={setNome}
-              placeholder="Digite seu nome"
-              style={styles.input}
-              autoFocus
-            />
-            <View style={styles.modalBotoes}>
-              <TouchableOpacity activeOpacity={0.7} onPress={() => setModalVisivel(false)}>
-                <Text>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => {
-                  if (!nome.trim()) {
-                    Alert.alert("Oopss", "Digite seu nome para continuar.");
-                    return;
-                  }
-                  confirmarChamada();
-                }}
-              >
-                <Text style={styles.confirmar}>Enviar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <ModalNomePassageiro
+        visivel={modalVisivel}
+        nome={nome}
+        onChangeNome={setNome}
+        onCancelar={fecharModalNome}
+        onConfirmar={handleEnviarNome}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  inputGatilho: {
-    position: "absolute",
-    left: 10,
-    right: 10,
-    backgroundColor: "#ffffff",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+  sheetFundo: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
   },
-  inputGatilhoTexto: { color: "#333333" },
-  sheetConteudo: {
-    flex: 1,
-    padding: 16,
-    gap: 12,
+  sheetHandle: {
+    backgroundColor: colors.border,
+    width: 40,
   },
-  sheetTitulo: { fontSize: 16, fontWeight: "bold" },
-  linhaInput: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  inputFlex: { flex: 1 },
-  botaoLocalizacao: {
-    backgroundColor: "#333333",
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  botaoLocalizacaoTexto: { fontSize: 18 },
-  botaoTracar: {
-    backgroundColor: "#333333",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  cardEstimativa: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#ffffff",
-    marginHorizontal: 10,
-    marginBottom: 10,
-    padding: 16,
-    borderRadius: 12,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    gap: 4,
-  },
-  valor: { fontWeight: "bold", fontSize: 16, marginTop: 4 },
-  erro: { color: "#c0392b" },
-  botao: {
-    marginTop: 12,
-    backgroundColor: "#25D366",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  botaoTexto: { color: "#ffffff", fontWeight: "bold" },
-  modalFundo: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalCard: {
-    backgroundColor: "#ffffff",
-    width: "85%",
-    borderRadius: 12,
-    padding: 20,
-    gap: 12,
-  },
-  modalTitulo: { fontSize: 16, fontWeight: "bold" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#cccccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  modalBotoes: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 24,
-  },
-  confirmar: { color: "#25D366", fontWeight: "bold" },
 });

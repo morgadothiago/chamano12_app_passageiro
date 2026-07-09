@@ -11,6 +11,14 @@ export type ResultadoRota = {
   polilinha: string;
 };
 
+type RoutesApiResponse = {
+  routes?: Array<{
+    duration?: string;
+    distanceMeters?: number;
+    polyline?: { encodedPolyline?: string };
+  }>;
+};
+
 export async function calcularRota(
   origem: Coordenada,
   destino: Coordenada
@@ -46,18 +54,27 @@ export async function calcularRota(
     throw new Error(`Erro ao calcular rota: ${response.statusText}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as RoutesApiResponse;
   const rota = data.routes?.[0];
 
   if (!rota) {
     throw new Error("Nenhuma rota encontrada.");
   }
 
-  const duracaoSegundos = Number(String(rota.duration).replace("s", ""));
+  const duracaoSegundos = Number(rota.duration?.replace("s", ""));
+  const encodedPolyline = rota.polyline?.encodedPolyline;
+
+  if (
+    !Number.isFinite(duracaoSegundos) ||
+    !Number.isFinite(rota.distanceMeters) ||
+    !encodedPolyline
+  ) {
+    throw new Error("Resposta de rota inválida.");
+  }
 
   return {
-    distanciaKm: rota.distanceMeters / 1000,
+    distanciaKm: rota.distanceMeters! / 1000,
     duracaoMinutos: duracaoSegundos / 60,
-    polilinha: rota.polyline.encodedPolyline,
+    polilinha: encodedPolyline,
   };
 }

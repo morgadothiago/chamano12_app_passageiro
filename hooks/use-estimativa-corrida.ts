@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import type { TarifaConfig } from "@/constants/tarifa";
 import { calcularRota, type Coordenada } from "@/lib/routes";
 import { calcularValorCorrida } from "@/lib/tarifa";
 
@@ -9,7 +10,7 @@ export type Estimativa = {
   polilinha: string;
 };
 
-export function useEstimativaCorrida() {
+export function useEstimativaCorrida(tarifa?: TarifaConfig) {
   const [estimativa, setEstimativa] = useState<Estimativa | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -20,7 +21,7 @@ export function useEstimativaCorrida() {
 
     try {
       const rota = await calcularRota(origem, destino);
-      const valorEstimado = calcularValorCorrida(rota.distanciaKm, rota.duracaoMinutos);
+      const valorEstimado = calcularValorCorrida(rota.distanciaKm, rota.duracaoMinutos, tarifa);
 
       setEstimativa({
         distanciaKm: rota.distanciaKm,
@@ -31,10 +32,11 @@ export function useEstimativaCorrida() {
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao calcular estimativa.");
       setEstimativa(null);
+      throw e;
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [tarifa]);
 
   const limpar = useCallback(() => {
     setEstimativa(null);

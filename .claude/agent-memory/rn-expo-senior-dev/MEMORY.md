@@ -1,0 +1,1 @@
+- [Project structure](project_structure.md) — pastas app/components/hooks/lib/constants e convenções de nomenclatura pt-BR deste app
