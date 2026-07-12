@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { memo } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SugestaoLugar } from "@/lib/autocomplete";
 import { colors, radius, shadow, spacing } from "@/lib/theme";
 
@@ -64,8 +65,10 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
   onUsarMinhaLocalizacao,
   onChamarCorrida,
 }: FormularioEnderecosProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.sheetConteudo}>
+    <View style={[styles.sheetConteudo, { paddingBottom: spacing.lg + insets.bottom }]}>
       <Text style={styles.sheetTitulo}>Para onde vamos?</Text>
 
       <View style={styles.camposEndereco}>
@@ -142,7 +145,8 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
 const styles = StyleSheet.create({
   sheetConteudo: {
     flex: 1,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
     gap: spacing.lg,
   },
   sheetTitulo: { fontSize: 18, fontWeight: "700", color: colors.textPrimary },
