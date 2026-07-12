@@ -67,6 +67,7 @@ const config: ExpoConfig = {
     eas: {
       projectId: "9b5d1919-92d4-4c4c-b6e2-0612e82e3ca0",
     },
+    apiUrl: process.env.EXPO_PUBLIC_API_URL,
   },
   experiments: {
     typedRoutes: true,

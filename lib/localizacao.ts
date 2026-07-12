@@ -1,4 +1,5 @@
 import * as Location from "expo-location";
+import { GOOGLE_MAPS_API_KEY } from "@/constants/tarifa";
 import type { Coordenada } from "@/lib/routes";
 
 export async function obterLocalizacaoAtual(): Promise<Coordenada> {
@@ -29,14 +30,46 @@ export async function geocodificarEndereco(endereco: string): Promise<Coordenada
   return { latitude: primeiro.latitude, longitude: primeiro.longitude };
 }
 
-export async function enderecoReverso(coordenada: Coordenada): Promise<string> {
-  const [resultado] = await Location.reverseGeocodeAsync(coordenada);
+type AddressComponent = {
+  long_name: string;
+  short_name: string;
+  types: string[];
+};
 
-  if (!resultado) {
+type GeocodeResult = {
+  address_components: AddressComponent[];
+  formatted_address: string;
+};
+
+type GeocodeResponse = {
+  status: string;
+  results: GeocodeResult[];
+};
+
+export async function enderecoReverso(coordenada: Coordenada): Promise<string> {
+  const response = await fetch(
+    `https://maps.googleapis.com/maps/api/geocode/json?latlng=${coordenada.latitude},${coordenada.longitude}&key=${GOOGLE_MAPS_API_KEY}&language=pt-BR`
+  );
+
+  if (!response.ok) {
+    throw new Error("Erro ao buscar endereço.");
+  }
+
+  const data: GeocodeResponse = await response.json();
+
+  if (data.status !== "OK" || !data.results?.length) {
     return `${coordenada.latitude}, ${coordenada.longitude}`;
   }
 
-  return [resultado.street, resultado.streetNumber, resultado.city]
-    .filter(Boolean)
-    .join(", ");
+  const components = data.results[0].address_components;
+  const getType = (type: string) =>
+    components.find((c) => c.types.includes(type))?.long_name ?? "";
+
+  const street = getType("route");
+  const number = getType("street_number");
+  const city = getType("locality");
+  const state = getType("administrative_area_level_1");
+
+  return [street, number, city, state].filter(Boolean).join(", ")
+    || data.results[0].formatted_address;
 }

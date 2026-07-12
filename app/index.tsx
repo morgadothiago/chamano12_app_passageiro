@@ -5,17 +5,18 @@ import { MapaCorrida } from "@/components/mapa-corrida";
 import { ModalNomePassageiro } from "@/components/modal-nome-passageiro";
 import { useEnderecosCorrida } from "@/hooks/use-enderecos-corrida";
 import { useEstimativaCorrida } from "@/hooks/use-estimativa-corrida";
+import { useTarifa } from "@/hooks/use-tarifa";
 import { useTecladoAtivo } from "@/hooks/use-teclado-ativo";
+import { useWebsocketCorrida } from "@/hooks/use-websocket-corrida";
 import { decodificarPolilinha } from "@/lib/polilinha";
 import { colors, radius } from "@/lib/theme";
-import { abrirWhatsappMotorista } from "@/lib/whatsapp";
 import BottomSheet, {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Keyboard, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Keyboard, StyleSheet, View } from "react-native";
 import type MapView from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -26,7 +27,8 @@ export default function Index() {
   const snapPoints = useMemo(() => ["45%"], []);
   const tecladoAtivo = useTecladoAtivo();
 
-  const { estimativa, carregando, erro, calcular, limpar } = useEstimativaCorrida();
+  const tarifa = useTarifa();
+  const { estimativa, carregando, erro, calcular, limpar } = useEstimativaCorrida(tarifa);
   const {
     enderecoOrigem,
     enderecoDestino,
@@ -42,6 +44,8 @@ export default function Index() {
     usarMinhaLocalizacaoComoOrigem,
     resolverCoordenadas,
   } = useEnderecosCorrida();
+
+  const { state: ride, requestRide, cancelRide, reset: resetRide } = useWebsocketCorrida();
 
   const [modalVisivel, setModalVisivel] = useState(false);
   const [nome, setNome] = useState("");
@@ -128,18 +132,21 @@ export default function Index() {
   const confirmarChamada = useCallback(() => {
     if (!nome.trim() || !coordOrigem || !coordDestino || !estimativa) return;
 
-    abrirWhatsappMotorista({
-      nome: nome.trim(),
-      enderecoOrigem,
-      origem: coordOrigem,
-      enderecoDestino,
-      destino: coordDestino,
-      valorEstimado: estimativa.valorEstimado,
+    requestRide({
+      passengerName: nome.trim(),
+      origem: enderecoOrigem,
+      origemLat: coordOrigem.latitude,
+      origemLng: coordOrigem.longitude,
+      destino: enderecoDestino,
+      destinoLat: coordDestino.latitude,
+      destinoLng: coordDestino.longitude,
+      distanciaKm: estimativa.distanciaKm,
+      valor: estimativa.valorEstimado,
     });
 
     setModalVisivel(false);
     setNome("");
-  }, [nome, coordOrigem, coordDestino, estimativa, enderecoOrigem, enderecoDestino]);
+  }, [nome, coordOrigem, coordDestino, estimativa, enderecoOrigem, enderecoDestino, requestRide]);
 
   const handleEnviarNome = useCallback(() => {
     if (!nome.trim()) {
@@ -154,12 +161,19 @@ export default function Index() {
     [estimativa]
   );
 
+  const handleCancelarCorrida = useCallback(() => {
+    cancelRide();
+    resetRide();
+    limpar();
+  }, [cancelRide, resetRide, limpar]);
+
   return (
-    <View style={[styles.flex, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={styles.flex}>
       <MapaCorrida
         ref={mapaRef}
         coordOrigem={coordOrigem}
         coordDestino={coordDestino}
+        driverLocation={ride.driverLocation}
         rota={rota}
         bottomOffset={estimativa ? 190 : 24}
         onRecentralizar={usarMinhaLocalizacao}
@@ -168,15 +182,17 @@ export default function Index() {
       <GatilhoEndereco
         enderecoDestino={enderecoDestino}
         top={insets.top + 12}
-        desabilitado={tecladoAtivo}
+        desabilitado={tecladoAtivo || ride.status !== "idle"}
         onPress={abrirBottomSheet}
       />
 
-      {estimativa && (
+      {(estimativa || ride.status !== "idle") && (
         <CardEstimativa
-          estimativa={estimativa}
+          estimativa={estimativa!}
           desabilitado={tecladoAtivo}
+          ride={ride}
           onChamarMotorista={abrirModalNome}
+          onCancelar={handleCancelarCorrida}
         />
       )}
 
@@ -217,6 +233,12 @@ export default function Index() {
         onCancelar={fecharModalNome}
         onConfirmar={handleEnviarNome}
       />
+
+      {buscandoLocalizacao && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#ffffff" />
+        </View>
+      )}
     </View>
   );
 }
@@ -231,5 +253,11 @@ const styles = StyleSheet.create({
   sheetHandle: {
     backgroundColor: colors.border,
     width: 40,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.overlay,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

@@ -5,13 +5,8 @@ import { enderecoReverso, geocodificarEndereco, obterLocalizacaoAtual } from "@/
 import type { Coordenada } from "@/lib/routes";
 
 const DEBOUNCE_SUGESTOES_MS = 350;
+const PREFIXO_CEP = "viacep:";
 
-/**
- * Quando o texto digitado é um CEP, resolve o endereço via ViaCEP antes de
- * geocodificar (CEP puro geocodifica mal via Google/Apple no Brasil) e
- * atualiza o texto visível do campo com o endereço encontrado. Se a
- * resolução do CEP falhar, o texto digitado pelo usuário é preservado.
- */
 async function resolverCoordenadaDoTexto(
   texto: string,
   atualizarTexto: (texto: string) => void
@@ -29,8 +24,17 @@ function useSugestoesCampo(texto: string, coordSelecionada: Coordenada | null) {
   const [sugestoes, setSugestoes] = useState<SugestaoLugar[]>([]);
 
   useEffect(() => {
-    if (coordSelecionada || isCep(texto) || texto.trim().length < 3) {
+    if (coordSelecionada || texto.trim().length < 3) {
       setSugestoes([]);
+      return;
+    }
+
+    if (isCep(texto)) {
+      buscarEnderecoPorCep(texto)
+        .then((endereco) => {
+          setSugestoes([{ placeId: `${PREFIXO_CEP}${texto.replace(/\D/g, "")}`, descricao: endereco }]);
+        })
+        .catch(() => setSugestoes([]));
       return;
     }
 
@@ -75,19 +79,41 @@ export function useEnderecosCorrida() {
     setCoordDestino(null);
   }, []);
 
-  const escolherSugestaoOrigem = useCallback(async (sugestao: SugestaoLugar) => {
-    setEnderecoOrigem(sugestao.descricao);
-    setSugestoesOrigem([]);
-    const coordenada = await buscarCoordenadaDoLugar(sugestao.placeId);
-    setCoordOrigem(coordenada);
-  }, [setSugestoesOrigem]);
+  const selecionarSugestao = useCallback(async (
+    sugestao: SugestaoLugar,
+    setEndereco: (v: string) => void,
+    setCoord: (v: Coordenada) => void,
+    setSugestoes: (v: SugestaoLugar[]) => void,
+  ) => {
+    setEndereco(sugestao.descricao);
+    setSugestoes([]);
 
-  const escolherSugestaoDestino = useCallback(async (sugestao: SugestaoLugar) => {
-    setEnderecoDestino(sugestao.descricao);
-    setSugestoesDestino([]);
-    const coordenada = await buscarCoordenadaDoLugar(sugestao.placeId);
-    setCoordDestino(coordenada);
-  }, [setSugestoesDestino]);
+    try {
+      let coordenada: Coordenada;
+
+      if (sugestao.placeId.startsWith(PREFIXO_CEP)) {
+        coordenada = await geocodificarEndereco(sugestao.descricao);
+      } else {
+        coordenada = await buscarCoordenadaDoLugar(sugestao.placeId);
+      }
+
+      setCoord(coordenada);
+    } catch {
+      setEndereco(sugestao.descricao);
+    }
+  }, []);
+
+  const escolherSugestaoOrigem = useCallback(
+    (sugestao: SugestaoLugar) =>
+      selecionarSugestao(sugestao, setEnderecoOrigem, setCoordOrigem, setSugestoesOrigem),
+    [selecionarSugestao, setSugestoesOrigem],
+  );
+
+  const escolherSugestaoDestino = useCallback(
+    (sugestao: SugestaoLugar) =>
+      selecionarSugestao(sugestao, setEnderecoDestino, setCoordDestino, setSugestoesDestino),
+    [selecionarSugestao, setSugestoesDestino],
+  );
 
   const usarMinhaLocalizacaoComoOrigem = useCallback(async (): Promise<Coordenada> => {
     setBuscandoLocalizacao(true);

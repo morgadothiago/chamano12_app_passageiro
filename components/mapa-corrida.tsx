@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { forwardRef, memo } from "react";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Animated } from "react-native-maps";
 import { mapaEstiloMinimalista } from "@/lib/mapa-estilo";
 import type { Coordenada } from "@/lib/routes";
 import { colors, radius, shadow } from "@/lib/theme";
@@ -9,13 +9,14 @@ import { colors, radius, shadow } from "@/lib/theme";
 type MapaCorridaProps = {
   coordOrigem: Coordenada | null;
   coordDestino: Coordenada | null;
+  driverLocation: Coordenada | null;
   rota: Coordenada[];
   bottomOffset?: number;
   onRecentralizar?: () => void;
 };
 
 export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
-  ({ coordOrigem, coordDestino, rota, bottomOffset = 24, onRecentralizar }, ref) => {
+  ({ coordOrigem, coordDestino, driverLocation, rota, bottomOffset = 24, onRecentralizar }, ref) => {
     return (
       <View style={styles.flex}>
         <MapView
@@ -72,6 +73,19 @@ export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
                   <View style={styles.pinMiolo} />
                 </View>
                 <View style={styles.pinPonta} />
+              </View>
+            </Marker>
+          )}
+
+          {driverLocation && (
+            <Marker
+              coordinate={driverLocation}
+              title="Motorista"
+              anchor={{ x: 0.5, y: 0.5 }}
+              zIndex={5}
+            >
+              <View style={styles.driverMarker}>
+                <Ionicons name="car" size={18} color="#ffffff" />
               </View>
             </Marker>
           )}
@@ -166,6 +180,21 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "rgba(0,0,0,0.25)",
     zIndex: 0,
+  },
+  driverMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
   },
   botaoRecentralizar: {
     position: "absolute",
