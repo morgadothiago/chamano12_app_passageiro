@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { forwardRef, memo } from "react";
-import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import { forwardRef, memo, useCallback, useRef } from "react";
+import { Animated, Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from "react-native-maps";
 import { mapaEstiloMinimalista } from "@/lib/mapa-estilo";
 import type { MotoristaProximo } from "@/lib/api-rides";
 import type { Coordenada } from "@/lib/routes";
@@ -15,10 +15,60 @@ type MapaCorridaProps = {
   rota: Coordenada[];
   bottomOffset?: number;
   onRecentralizar?: () => void;
+  // Padrão Uber/99: quando definido, mostra um pino fixo no centro exato da
+  // tela e esconde o marker "confirmado" do lado correspondente (é o mapa
+  // que se move por baixo do pino, não o contrário). O valor indica se o
+  // pino representa a origem ou o destino sendo ajustado.
+  modoSelecaoCentral?: "origem" | "destino" | null;
+  onRegionChangeComplete?: (region: Region) => void;
 };
 
 export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
-  ({ coordOrigem, coordDestino, driverLocation, motoristasProximos = [], rota, bottomOffset = 24, onRecentralizar }, ref) => {
+  (
+    {
+      coordOrigem,
+      coordDestino,
+      driverLocation,
+      motoristasProximos = [],
+      rota,
+      bottomOffset = 24,
+      onRecentralizar,
+      modoSelecaoCentral = null,
+      onRegionChangeComplete,
+    },
+    ref,
+  ) => {
+    // Eleva o pino e "achata" a sombra enquanto o mapa está sendo arrastado,
+    // dando a sensação de profundidade do padrão Uber/99. `arrastandoRef`
+    // evita reiniciar a animação a cada evento de pan (onPanDrag dispara em
+    // praticamente todo frame de gesto).
+    const arrastandoRef = useRef(false);
+    const pinTranslateY = useRef(new Animated.Value(0)).current;
+    const sombraEscala = useRef(new Animated.Value(1)).current;
+
+    const handlePanDrag = useCallback(() => {
+      if (!modoSelecaoCentral || arrastandoRef.current) return;
+      arrastandoRef.current = true;
+      Animated.parallel([
+        Animated.timing(pinTranslateY, { toValue: -12, duration: 150, useNativeDriver: true }),
+        Animated.timing(sombraEscala, { toValue: 0.6, duration: 150, useNativeDriver: true }),
+      ]).start();
+    }, [modoSelecaoCentral, pinTranslateY, sombraEscala]);
+
+    const handleRegionChangeComplete = useCallback(
+      (region: Region) => {
+        if (modoSelecaoCentral && arrastandoRef.current) {
+          arrastandoRef.current = false;
+          Animated.parallel([
+            Animated.spring(pinTranslateY, { toValue: 0, useNativeDriver: true, friction: 5 }),
+            Animated.timing(sombraEscala, { toValue: 1, duration: 150, useNativeDriver: true }),
+          ]).start();
+        }
+        onRegionChangeComplete?.(region);
+      },
+      [modoSelecaoCentral, onRegionChangeComplete, pinTranslateY, sombraEscala],
+    );
+
     return (
       <View style={styles.flex}>
         <MapView
@@ -33,9 +83,11 @@ export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
           initialRegion={{
             latitude: -15.7942,
             longitude: -47.8822,
-            latitudeDelta: 0.035,
-            longitudeDelta: 0.035,
+            latitudeDelta: 0.1,
+            longitudeDelta: 0.1,
           }}
+          onPanDrag={handlePanDrag}
+          onRegionChangeComplete={handleRegionChangeComplete}
         >
           {rota.length > 0 && (
             <Polyline
@@ -58,7 +110,7 @@ export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
             />
           )}
 
-          {coordOrigem && (
+          {coordOrigem && modoSelecaoCentral !== "origem" && (
             <Marker coordinate={coordOrigem} title="Origem" anchor={{ x: 0.5, y: 0.5 }} zIndex={3}>
               <View style={styles.marcadorOrigemAnel}>
                 <View style={styles.marcadorOrigemHalo}>
@@ -67,7 +119,7 @@ export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
               </View>
             </Marker>
           )}
-          {coordDestino && (
+          {coordDestino && modoSelecaoCentral !== "destino" && (
             <Marker coordinate={coordDestino} title="Destino" anchor={{ x: 0.5, y: 1 }} zIndex={4}>
               <View style={styles.pinContainer}>
                 <View style={styles.pinSombra} />
@@ -107,6 +159,23 @@ export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
             </Marker>
           ))}
         </MapView>
+
+        {modoSelecaoCentral && (
+          <View pointerEvents="none" style={styles.pinCentralContainer}>
+            <Animated.View
+              style={[styles.pinCentralSombra, { transform: [{ scaleX: sombraEscala }] }]}
+            />
+            <Animated.View
+              style={[styles.pinCentralPino, { transform: [{ translateY: pinTranslateY }] }]}
+            >
+              <Ionicons
+                name="location-sharp"
+                size={44}
+                color={modoSelecaoCentral === "origem" ? colors.primary : colors.surfaceDark}
+              />
+            </Animated.View>
+          </View>
+        )}
 
         {onRecentralizar && (
           <TouchableOpacity
@@ -227,6 +296,35 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
     elevation: 3,
+  },
+  // Pino fixo do modo "arrastar o mapa" (padrão Uber/99): ancorado pela
+  // ponta inferior no centro exato da tela. O ícone `location-sharp` tem a
+  // ponta no centro horizontal da base do seu bounding box, então o offset
+  // negativo (metade da largura, altura inteira) alinha a ponta com o
+  // ponto (50%, 50%) do container.
+  pinCentralContainer: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    marginLeft: -22,
+    marginTop: -44,
+    alignItems: "center",
+    zIndex: 20,
+  },
+  pinCentralPino: {
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  pinCentralSombra: {
+    position: "absolute",
+    bottom: -4,
+    alignSelf: "center",
+    width: 18,
+    height: 6,
+    borderRadius: 4,
+    backgroundColor: "rgba(0,0,0,0.3)",
   },
   botaoRecentralizar: {
     position: "absolute",

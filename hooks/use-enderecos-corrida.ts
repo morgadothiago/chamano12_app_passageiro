@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { buscarCoordenadaDoLugar, buscarSugestoesLugar, type SugestaoLugar } from "@/lib/autocomplete";
 import { buscarEnderecoPorCep, isCep, mascararCep } from "@/lib/cep";
 import { enderecoReverso, geocodificarEndereco, obterLocalizacaoAtual } from "@/lib/localizacao";
 import type { Coordenada } from "@/lib/routes";
 
 const DEBOUNCE_SUGESTOES_MS = 350;
+// Espera o mapa "assentar" antes de resolver o endereço do pino central —
+// evita disparar uma chamada de geocodificação reversa a cada frame de
+// arraste (mesmo padrão de debounce usado nas sugestões de autocomplete).
+const DEBOUNCE_PIN_CENTRAL_MS = 400;
 const PREFIXO_CEP = "viacep:";
 
 async function resolverCoordenadaDoTexto(
@@ -65,6 +69,8 @@ export function useEnderecosCorrida() {
   const [coordOrigem, setCoordOrigem] = useState<Coordenada | null>(null);
   const [coordDestino, setCoordDestino] = useState<Coordenada | null>(null);
   const [buscandoLocalizacao, setBuscandoLocalizacao] = useState(false);
+  const [resolvendoEnderecoCentral, setResolvendoEnderecoCentral] = useState(false);
+  const debouncePinCentralRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [sugestoesOrigem, setSugestoesOrigem] = useSugestoesCampo(enderecoOrigem, coordOrigem);
   const [sugestoesDestino, setSugestoesDestino] = useSugestoesCampo(enderecoDestino, coordDestino);
@@ -129,6 +135,45 @@ export function useEnderecosCorrida() {
     }
   }, [setSugestoesOrigem]);
 
+  // Padrão Uber/99: enquanto o usuário arrasta o mapa com o pino fixo no
+  // centro da tela, resolvemos o endereço da coordenada central via reverse
+  // geocoding (reaproveitando `enderecoReverso`, a mesma função usada em
+  // `usarMinhaLocalizacaoComoOrigem`). Debounce evita chamadas em excesso —
+  // o chamador (MapaCorrida) já só invoca isso em `onRegionChangeComplete`,
+  // mas o debounce protege contra assentamentos rápidos em sequência.
+  const resolverEnderecoPorCoordenadaCentral = useCallback(
+    (coordenada: Coordenada, alvo: "origem" | "destino") => {
+      if (debouncePinCentralRef.current) clearTimeout(debouncePinCentralRef.current);
+
+      const setEndereco = alvo === "origem" ? setEnderecoOrigem : setEnderecoDestino;
+      const setCoord = alvo === "origem" ? setCoordOrigem : setCoordDestino;
+      const setSugestoes = alvo === "origem" ? setSugestoesOrigem : setSugestoesDestino;
+
+      setCoord(coordenada);
+      setResolvendoEnderecoCentral(true);
+
+      debouncePinCentralRef.current = setTimeout(() => {
+        enderecoReverso(coordenada)
+          .then((endereco) => {
+            setEndereco(endereco);
+            setSugestoes([]);
+          })
+          .catch(() => {
+            // Mantém a coordenada mesmo se o reverse geocoding falhar —
+            // o usuário ainda pode confirmar pela posição do pino.
+          })
+          .finally(() => setResolvendoEnderecoCentral(false));
+      }, DEBOUNCE_PIN_CENTRAL_MS);
+    },
+    [setSugestoesOrigem, setSugestoesDestino],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (debouncePinCentralRef.current) clearTimeout(debouncePinCentralRef.current);
+    };
+  }, []);
+
   const resolverCoordenadas = useCallback(async () => {
     const origem =
       coordOrigem ?? (await resolverCoordenadaDoTexto(enderecoOrigem, setEnderecoOrigem));
@@ -145,6 +190,7 @@ export function useEnderecosCorrida() {
     coordOrigem,
     coordDestino,
     buscandoLocalizacao,
+    resolvendoEnderecoCentral,
     sugestoesOrigem,
     sugestoesDestino,
     handleChangeEnderecoOrigem,
@@ -152,6 +198,7 @@ export function useEnderecosCorrida() {
     escolherSugestaoOrigem,
     escolherSugestaoDestino,
     usarMinhaLocalizacaoComoOrigem,
+    resolverEnderecoPorCoordenadaCentral,
     resolverCoordenadas,
   };
 }
