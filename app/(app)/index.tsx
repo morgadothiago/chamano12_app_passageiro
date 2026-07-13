@@ -3,6 +3,7 @@ import { FormularioEnderecos } from "@/components/formulario-enderecos";
 import { GatilhoEndereco } from "@/components/gatilho-endereco";
 import { MapaCorrida } from "@/components/mapa-corrida";
 import { ModalNomePassageiro } from "@/components/modal-nome-passageiro";
+import { SeletorEnderecoMapa } from "@/components/seletor-endereco-mapa";
 import { useEnderecosCorrida } from "@/hooks/use-enderecos-corrida";
 import { useEstimativaCorrida } from "@/hooks/use-estimativa-corrida";
 import { useMotoristasProximos } from "@/hooks/use-motoristas-proximos";
@@ -28,6 +29,7 @@ import {
   View,
 } from "react-native";
 import type MapView from "react-native-maps";
+import type { Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
@@ -49,6 +51,7 @@ export default function Index() {
     coordOrigem,
     coordDestino,
     buscandoLocalizacao,
+    resolvendoEnderecoCentral,
     sugestoesOrigem,
     sugestoesDestino,
     handleChangeEnderecoOrigem,
@@ -56,8 +59,13 @@ export default function Index() {
     escolherSugestaoOrigem,
     escolherSugestaoDestino,
     usarMinhaLocalizacaoComoOrigem,
+    resolverEnderecoPorCoordenadaCentral,
     resolverCoordenadas,
   } = useEnderecosCorrida();
+
+  // Padrão Uber/99: quando != null, mostra o pino fixo central por cima do
+  // MapaCorrida (que continua montado atrás) em vez do formulário de texto.
+  const [modoMapaAtivo, setModoMapaAtivo] = useState<"origem" | "destino" | null>(null);
 
   const { state: ride, requestRide, cancelRide, reset: resetRide } = useWebsocketCorrida();
   const motoristasProximos = useMotoristasProximos(coordOrigem);
@@ -80,6 +88,35 @@ export default function Index() {
   const fecharModalNome = useCallback(() => {
     setModalVisivel(false);
   }, []);
+
+  const abrirSelecaoNoMapa = useCallback((alvo: "origem" | "destino") => {
+    // Fecha o formulário de texto pra revelar o MapaCorrida por trás — os
+    // dois modos não ficam abertos ao mesmo tempo, mas o texto digitado
+    // continua valendo como estado inicial do pino.
+    setBuscaVisivel(false);
+    setModoMapaAtivo(alvo);
+  }, []);
+
+  const fecharSelecaoNoMapa = useCallback(() => {
+    setModoMapaAtivo(null);
+    setBuscaVisivel(true);
+  }, []);
+
+  const confirmarSelecaoNoMapa = useCallback(() => {
+    setModoMapaAtivo(null);
+    setBuscaVisivel(true);
+  }, []);
+
+  const handleRegionChangeCompleteSelecao = useCallback(
+    (region: Region) => {
+      if (!modoMapaAtivo) return;
+      resolverEnderecoPorCoordenadaCentral(
+        { latitude: region.latitude, longitude: region.longitude },
+        modoMapaAtivo,
+      );
+    },
+    [modoMapaAtivo, resolverEnderecoPorCoordenadaCentral],
+  );
 
   const usarMinhaLocalizacao = useCallback(async () => {
     try {
@@ -188,50 +225,68 @@ export default function Index() {
         rota={rota}
         bottomOffset={estimativa ? 190 : 24}
         onRecentralizar={usarMinhaLocalizacao}
+        modoSelecaoCentral={modoMapaAtivo}
+        onRegionChangeComplete={handleRegionChangeCompleteSelecao}
       />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Sair da conta"
-        onPress={logout}
-        style={({ pressed }) => [
-          styles.logoutButton,
-          { top: insets.top + 12 },
-          pressed && styles.logoutButtonPressed,
-        ]}
-      >
-        <Ionicons name="log-out-outline" size={20} color={colors.textOnDark} />
-      </Pressable>
+      {!modoMapaAtivo && (
+        <>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sair da conta"
+            onPress={logout}
+            style={({ pressed }) => [
+              styles.logoutButton,
+              { top: insets.top + 12 },
+              pressed && styles.logoutButtonPressed,
+            ]}
+          >
+            <Ionicons name="log-out-outline" size={20} color={colors.textOnDark} />
+          </Pressable>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Meu perfil"
-        onPress={() => router.push("/perfil")}
-        style={({ pressed }) => [
-          styles.profileButton,
-          { top: insets.top + 12 },
-          pressed && styles.logoutButtonPressed,
-        ]}
-      >
-        <Ionicons name="person" size={20} color={colors.textOnDark} />
-      </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Meu perfil"
+            onPress={() => router.push("/perfil")}
+            style={({ pressed }) => [
+              styles.profileButton,
+              { top: insets.top + 12 },
+              pressed && styles.logoutButtonPressed,
+            ]}
+          >
+            <Ionicons name="person" size={20} color={colors.textOnDark} />
+          </Pressable>
 
-      <GatilhoEndereco
-        enderecoDestino={enderecoDestino}
-        top={insets.top + 12 + LOGOUT_ROW_HEIGHT + LOGOUT_ROW_GAP}
-        desabilitado={tecladoAtivo || ride.status !== "idle"}
-        onPress={abrirBottomSheet}
-      />
+          <GatilhoEndereco
+            enderecoDestino={enderecoDestino}
+            top={insets.top + 12 + LOGOUT_ROW_HEIGHT + LOGOUT_ROW_GAP}
+            desabilitado={tecladoAtivo || ride.status !== "idle"}
+            onPress={abrirBottomSheet}
+          />
 
-      {(estimativa || ride.status !== "idle") && (
-        <CardEstimativa
-          estimativa={estimativa!}
-          desabilitado={tecladoAtivo}
-          ride={ride}
-          enderecoOrigem={enderecoOrigem}
-          enderecoDestino={enderecoDestino}
-          onChamarMotorista={abrirModalNome}
-          onCancelar={handleCancelarCorrida}
+          {(estimativa || ride.status !== "idle") && (
+            <CardEstimativa
+              estimativa={estimativa!}
+              desabilitado={tecladoAtivo}
+              ride={ride}
+              enderecoOrigem={enderecoOrigem}
+              enderecoDestino={enderecoDestino}
+              onChamarMotorista={abrirModalNome}
+              onCancelar={handleCancelarCorrida}
+            />
+          )}
+        </>
+      )}
+
+      {modoMapaAtivo && (
+        <SeletorEnderecoMapa
+          alvo={modoMapaAtivo}
+          endereco={modoMapaAtivo === "origem" ? enderecoOrigem : enderecoDestino}
+          resolvendo={resolvendoEnderecoCentral}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+          onFechar={fecharSelecaoNoMapa}
+          onConfirmar={confirmarSelecaoNoMapa}
         />
       )}
 
@@ -267,6 +322,8 @@ export default function Index() {
               onSelecionarSugestaoDestino={escolherSugestaoDestino}
               onUsarMinhaLocalizacao={usarMinhaLocalizacao}
               onChamarCorrida={chamarCorrida}
+              onAjustarOrigemNoMapa={() => abrirSelecaoNoMapa("origem")}
+              onAjustarDestinoNoMapa={() => abrirSelecaoNoMapa("destino")}
             />
           </View>
         </KeyboardAvoidingView>

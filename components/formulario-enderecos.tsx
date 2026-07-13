@@ -19,6 +19,8 @@ type FormularioEnderecosProps = {
   onSelecionarSugestaoDestino: (sugestao: SugestaoLugar) => void;
   onUsarMinhaLocalizacao: () => void;
   onChamarCorrida: () => void;
+  onAjustarOrigemNoMapa: () => void;
+  onAjustarDestinoNoMapa: () => void;
 };
 
 function ListaSugestoes({
@@ -63,6 +65,8 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
   onSelecionarSugestaoDestino,
   onUsarMinhaLocalizacao,
   onChamarCorrida,
+  onAjustarOrigemNoMapa,
+  onAjustarDestinoNoMapa,
 }: FormularioEnderecosProps) {
   const insets = useSafeAreaInsets();
 
@@ -101,18 +105,38 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
                   <Ionicons name="locate" size={18} color={colors.primary} />
                 )}
               </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.botaoLocalizacao}
+                onPress={onAjustarOrigemNoMapa}
+                accessibilityRole="button"
+                accessibilityLabel="Ajustar origem arrastando o mapa"
+              >
+                <Ionicons name="map-outline" size={18} color={colors.primary} />
+              </TouchableOpacity>
             </View>
             <ListaSugestoes sugestoes={sugestoesOrigem} onSelecionar={onSelecionarSugestaoOrigem} />
           </View>
 
           <View style={styles.campoComSugestoes}>
-            <TextInput
-              value={enderecoDestino}
-              onChangeText={onChangeEnderecoDestino}
-              placeholder="Endereço ou CEP de destino"
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-            />
+            <View style={styles.linhaInput}>
+              <TextInput
+                value={enderecoDestino}
+                onChangeText={onChangeEnderecoDestino}
+                placeholder="Endereço ou CEP de destino"
+                placeholderTextColor={colors.textMuted}
+                style={[styles.input, styles.inputFlex]}
+              />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.botaoLocalizacao}
+                onPress={onAjustarDestinoNoMapa}
+                accessibilityRole="button"
+                accessibilityLabel="Ajustar destino arrastando o mapa"
+              >
+                <Ionicons name="map-outline" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
             <ListaSugestoes sugestoes={sugestoesDestino} onSelecionar={onSelecionarSugestaoDestino} />
           </View>
         </View>
