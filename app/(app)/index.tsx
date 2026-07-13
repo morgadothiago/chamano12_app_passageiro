@@ -3,7 +3,6 @@ import { FormularioEnderecos } from "@/components/formulario-enderecos";
 import { GatilhoEndereco } from "@/components/gatilho-endereco";
 import { MapaCorrida } from "@/components/mapa-corrida";
 import { ModalNomePassageiro } from "@/components/modal-nome-passageiro";
-import { SeletorEnderecoMapa } from "@/components/seletor-endereco-mapa";
 import { useEnderecosCorrida } from "@/hooks/use-enderecos-corrida";
 import { useEstimativaCorrida } from "@/hooks/use-estimativa-corrida";
 import { useMotoristasProximos } from "@/hooks/use-motoristas-proximos";
@@ -29,12 +28,14 @@ import {
   View,
 } from "react-native";
 import type MapView from "react-native-maps";
-import type { Region } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
 const LOGOUT_ROW_HEIGHT = 44;
 const LOGOUT_ROW_GAP = spacing.sm;
+// Zoom "ideal" tipo Uber/99: mais aberto que o valor anterior (0.02), que
+// ficava apertado demais — mostra o entorno/bairro sem perder o contexto.
+const ZOOM_DELTA = 0.035;
 
 export default function Index() {
   const insets = useSafeAreaInsets();
@@ -51,7 +52,6 @@ export default function Index() {
     coordOrigem,
     coordDestino,
     buscandoLocalizacao,
-    resolvendoEnderecoCentral,
     sugestoesOrigem,
     sugestoesDestino,
     handleChangeEnderecoOrigem,
@@ -59,13 +59,8 @@ export default function Index() {
     escolherSugestaoOrigem,
     escolherSugestaoDestino,
     usarMinhaLocalizacaoComoOrigem,
-    resolverEnderecoPorCoordenadaCentral,
     resolverCoordenadas,
   } = useEnderecosCorrida();
-
-  // Padrão Uber/99: quando != null, mostra o pino fixo central por cima do
-  // MapaCorrida (que continua montado atrás) em vez do formulário de texto.
-  const [modoMapaAtivo, setModoMapaAtivo] = useState<"origem" | "destino" | null>(null);
 
   const { state: ride, requestRide, cancelRide, reset: resetRide } = useWebsocketCorrida();
   const motoristasProximos = useMotoristasProximos(coordOrigem);
@@ -89,42 +84,13 @@ export default function Index() {
     setModalVisivel(false);
   }, []);
 
-  const abrirSelecaoNoMapa = useCallback((alvo: "origem" | "destino") => {
-    // Fecha o formulário de texto pra revelar o MapaCorrida por trás — os
-    // dois modos não ficam abertos ao mesmo tempo, mas o texto digitado
-    // continua valendo como estado inicial do pino.
-    setBuscaVisivel(false);
-    setModoMapaAtivo(alvo);
-  }, []);
-
-  const fecharSelecaoNoMapa = useCallback(() => {
-    setModoMapaAtivo(null);
-    setBuscaVisivel(true);
-  }, []);
-
-  const confirmarSelecaoNoMapa = useCallback(() => {
-    setModoMapaAtivo(null);
-    setBuscaVisivel(true);
-  }, []);
-
-  const handleRegionChangeCompleteSelecao = useCallback(
-    (region: Region) => {
-      if (!modoMapaAtivo) return;
-      resolverEnderecoPorCoordenadaCentral(
-        { latitude: region.latitude, longitude: region.longitude },
-        modoMapaAtivo,
-      );
-    },
-    [modoMapaAtivo, resolverEnderecoPorCoordenadaCentral],
-  );
-
   const usarMinhaLocalizacao = useCallback(async () => {
     try {
       const coordenada = await usarMinhaLocalizacaoComoOrigem();
       mapaRef.current?.animateToRegion({
         ...coordenada,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
+        latitudeDelta: ZOOM_DELTA,
+        longitudeDelta: ZOOM_DELTA,
       });
     } catch (e) {
       Toast.show({
@@ -140,8 +106,8 @@ export default function Index() {
       .then((coordenada) => {
         mapaRef.current?.animateToRegion({
           ...coordenada,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
+          latitudeDelta: ZOOM_DELTA,
+          longitudeDelta: ZOOM_DELTA,
         });
       })
       .catch(() => {});
@@ -225,68 +191,50 @@ export default function Index() {
         rota={rota}
         bottomOffset={estimativa ? 190 : 24}
         onRecentralizar={usarMinhaLocalizacao}
-        modoSelecaoCentral={modoMapaAtivo}
-        onRegionChangeComplete={handleRegionChangeCompleteSelecao}
       />
 
-      {!modoMapaAtivo && (
-        <>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Sair da conta"
-            onPress={logout}
-            style={({ pressed }) => [
-              styles.logoutButton,
-              { top: insets.top + 12 },
-              pressed && styles.logoutButtonPressed,
-            ]}
-          >
-            <Ionicons name="log-out-outline" size={20} color={colors.textOnDark} />
-          </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Sair da conta"
+        onPress={logout}
+        style={({ pressed }) => [
+          styles.logoutButton,
+          { top: insets.top + 12 },
+          pressed && styles.logoutButtonPressed,
+        ]}
+      >
+        <Ionicons name="log-out-outline" size={20} color={colors.textOnDark} />
+      </Pressable>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Meu perfil"
-            onPress={() => router.push("/perfil")}
-            style={({ pressed }) => [
-              styles.profileButton,
-              { top: insets.top + 12 },
-              pressed && styles.logoutButtonPressed,
-            ]}
-          >
-            <Ionicons name="person" size={20} color={colors.textOnDark} />
-          </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Meu perfil"
+        onPress={() => router.push("/perfil")}
+        style={({ pressed }) => [
+          styles.profileButton,
+          { top: insets.top + 12 },
+          pressed && styles.logoutButtonPressed,
+        ]}
+      >
+        <Ionicons name="person" size={20} color={colors.textOnDark} />
+      </Pressable>
 
-          <GatilhoEndereco
-            enderecoDestino={enderecoDestino}
-            top={insets.top + 12 + LOGOUT_ROW_HEIGHT + LOGOUT_ROW_GAP}
-            desabilitado={tecladoAtivo || ride.status !== "idle"}
-            onPress={abrirBottomSheet}
-          />
+      <GatilhoEndereco
+        enderecoDestino={enderecoDestino}
+        top={insets.top + 12 + LOGOUT_ROW_HEIGHT + LOGOUT_ROW_GAP}
+        desabilitado={tecladoAtivo || ride.status !== "idle"}
+        onPress={abrirBottomSheet}
+      />
 
-          {(estimativa || ride.status !== "idle") && (
-            <CardEstimativa
-              estimativa={estimativa!}
-              desabilitado={tecladoAtivo}
-              ride={ride}
-              enderecoOrigem={enderecoOrigem}
-              enderecoDestino={enderecoDestino}
-              onChamarMotorista={abrirModalNome}
-              onCancelar={handleCancelarCorrida}
-            />
-          )}
-        </>
-      )}
-
-      {modoMapaAtivo && (
-        <SeletorEnderecoMapa
-          alvo={modoMapaAtivo}
-          endereco={modoMapaAtivo === "origem" ? enderecoOrigem : enderecoDestino}
-          resolvendo={resolvendoEnderecoCentral}
-          topInset={insets.top}
-          bottomInset={insets.bottom}
-          onFechar={fecharSelecaoNoMapa}
-          onConfirmar={confirmarSelecaoNoMapa}
+      {(estimativa || ride.status !== "idle") && (
+        <CardEstimativa
+          estimativa={estimativa!}
+          desabilitado={tecladoAtivo}
+          ride={ride}
+          enderecoOrigem={enderecoOrigem}
+          enderecoDestino={enderecoDestino}
+          onChamarMotorista={abrirModalNome}
+          onCancelar={handleCancelarCorrida}
         />
       )}
 
@@ -311,7 +259,6 @@ export default function Index() {
             <FormularioEnderecos
               enderecoOrigem={enderecoOrigem}
               enderecoDestino={enderecoDestino}
-              buscandoLocalizacao={buscandoLocalizacao}
               carregando={carregando}
               erro={erro}
               sugestoesOrigem={sugestoesOrigem}
@@ -320,10 +267,7 @@ export default function Index() {
               onChangeEnderecoDestino={handleChangeEnderecoDestino}
               onSelecionarSugestaoOrigem={escolherSugestaoOrigem}
               onSelecionarSugestaoDestino={escolherSugestaoDestino}
-              onUsarMinhaLocalizacao={usarMinhaLocalizacao}
               onChamarCorrida={chamarCorrida}
-              onAjustarOrigemNoMapa={() => abrirSelecaoNoMapa("origem")}
-              onAjustarDestinoNoMapa={() => abrirSelecaoNoMapa("destino")}
             />
           </View>
         </KeyboardAvoidingView>
