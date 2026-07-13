@@ -123,8 +123,8 @@ export default function Index() {
       const coordenada = await usarMinhaLocalizacaoComoOrigem();
       mapaRef.current?.animateToRegion({
         ...coordenada,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
       });
     } catch (e) {
       Toast.show({
@@ -140,8 +140,8 @@ export default function Index() {
       .then((coordenada) => {
         mapaRef.current?.animateToRegion({
           ...coordenada,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
         });
       })
       .catch(() => {});

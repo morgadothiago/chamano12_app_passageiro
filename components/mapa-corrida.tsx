@@ -83,8 +83,8 @@ export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
           initialRegion={{
             latitude: -15.7942,
             longitude: -47.8822,
-            latitudeDelta: 0.1,
-            longitudeDelta: 0.1,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
           }}
           onPanDrag={handlePanDrag}
           onRegionChangeComplete={handleRegionChangeComplete}
