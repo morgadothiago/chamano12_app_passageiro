@@ -12,7 +12,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { colors, radius, spacing } from "@/lib/theme";
+import { colors, radius, shadow, spacing } from "@/lib/theme";
 
 type ModalNomePassageiroProps = {
   visivel: boolean;
@@ -94,27 +94,31 @@ const styles = StyleSheet.create({
   modalCard: {
     backgroundColor: colors.surface,
     width: "100%",
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     padding: spacing.xl,
     gap: spacing.sm,
+    ...shadow.card,
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
   },
   avatar: {
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
     borderRadius: radius.full,
-    backgroundColor: "#EAFBF3",
+    backgroundColor: colors.primaryTranslucent,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: spacing.xs,
   },
-  modalTitulo: { fontSize: 18, fontWeight: "700", color: colors.textPrimary },
+  modalTitulo: { fontSize: 19, fontWeight: "700", color: colors.textPrimary, letterSpacing: -0.3 },
   modalSubtitulo: { fontSize: 13, color: colors.textSecondary, marginBottom: spacing.sm },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+    fontSize: 15,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
@@ -124,18 +128,25 @@ const styles = StyleSheet.create({
   },
   botaoSecundario: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderRadius: radius.md,
     alignItems: "center",
-    backgroundColor: colors.border,
+    backgroundColor: colors.background,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
-  textoSecundario: { color: colors.textSecondary, fontWeight: "600" },
+  textoSecundario: { color: colors.textSecondary, fontWeight: "700" },
   botaoPrimario: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderRadius: radius.md,
     alignItems: "center",
     backgroundColor: colors.primary,
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
-  textoPrimario: { color: "#ffffff", fontWeight: "700" },
+  textoPrimario: { color: colors.white, fontWeight: "700" },
 });

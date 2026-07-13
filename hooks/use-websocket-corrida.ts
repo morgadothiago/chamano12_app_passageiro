@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
+import Toast from "react-native-toast-message";
 import { connect, disconnect, getSocket } from "@/lib/websocket";
 import type { Coordenada } from "@/lib/routes";
 
@@ -122,7 +123,7 @@ export function useWebsocketCorrida() {
     (params: RequestRideParams) => {
       const socket = getSocket();
       if (!socket?.connected) {
-        Alert.alert("Erro", "Sem conexão com o servidor.");
+        Toast.show({ type: "error", text1: "Sem conexão com o servidor", text2: "Tente novamente em instantes." });
         return;
       }
 

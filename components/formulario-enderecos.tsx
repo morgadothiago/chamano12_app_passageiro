@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { memo } from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SugestaoLugar } from "@/lib/autocomplete";
 import { colors, radius, shadow, spacing } from "@/lib/theme";
@@ -81,7 +80,7 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
         <View style={styles.inputs}>
           <View style={styles.campoComSugestoes}>
             <View style={styles.linhaInput}>
-              <BottomSheetTextInput
+              <TextInput
                 value={enderecoOrigem}
                 onChangeText={onChangeEnderecoOrigem}
                 placeholder="Endereço ou CEP de origem"
@@ -97,9 +96,9 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
                 accessibilityLabel="Usar minha localização atual como origem"
               >
                 {buscandoLocalizacao ? (
-                  <ActivityIndicator color="#ffffff" size="small" />
+                  <ActivityIndicator color={colors.primary} size="small" />
                 ) : (
-                  <Ionicons name="locate" size={18} color="#ffffff" />
+                  <Ionicons name="locate" size={18} color={colors.primary} />
                 )}
               </TouchableOpacity>
             </View>
@@ -107,7 +106,7 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
           </View>
 
           <View style={styles.campoComSugestoes}>
-            <BottomSheetTextInput
+            <TextInput
               value={enderecoDestino}
               onChangeText={onChangeEnderecoDestino}
               placeholder="Endereço ou CEP de destino"
@@ -144,12 +143,11 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
 
 const styles = StyleSheet.create({
   sheetConteudo: {
-    flex: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     gap: spacing.lg,
   },
-  sheetTitulo: { fontSize: 18, fontWeight: "700", color: colors.textPrimary },
+  sheetTitulo: { fontSize: 19, fontWeight: "700", color: colors.textPrimary, letterSpacing: -0.3 },
   camposEndereco: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -179,7 +177,7 @@ const styles = StyleSheet.create({
   },
   inputFlex: { flex: 1 },
   botaoLocalizacao: {
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.primaryTranslucent,
     width: 44,
     height: 44,
     borderRadius: radius.md,
@@ -188,12 +186,17 @@ const styles = StyleSheet.create({
   },
   botaoTracar: {
     backgroundColor: colors.primary,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderRadius: radius.md,
     alignItems: "center",
+    shadowColor: colors.primaryDark,
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   botaoDesabilitado: { opacity: 0.6 },
-  botaoTexto: { color: "#ffffff", fontWeight: "600", fontSize: 15 },
+  botaoTexto: { color: colors.white, fontWeight: "700", fontSize: 16 },
   erroBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -210,6 +213,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     height: 44,
+    fontSize: 15,
     color: colors.textPrimary,
     backgroundColor: colors.background,
   },

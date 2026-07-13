@@ -44,3 +44,6 @@ app-example
 /android
 android/
 ios/
+
+# builds locais (APKs gerados, não versionados)
+builds/

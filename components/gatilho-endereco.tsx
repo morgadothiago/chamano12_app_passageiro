@@ -28,13 +28,16 @@ export const GatilhoEndereco = memo(function GatilhoEndereco({
         accessibilityRole="button"
         accessibilityLabel="Definir endereço de destino"
       >
-        <Ionicons name="search" size={18} color={colors.textSecondary} />
+        <View style={styles.iconeBadge}>
+          <Ionicons name="search" size={16} color={colors.primary} />
+        </View>
         <Text
           style={[styles.texto, enderecoDestino && styles.textoPreenchido]}
           numberOfLines={1}
         >
           {enderecoDestino ? `Para: ${enderecoDestino}` : "Para onde vamos?"}
         </Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
       </TouchableOpacity>
     </View>
   );
@@ -48,14 +51,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     ...shadow.card,
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
   },
   conteudo: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    paddingVertical: 16,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
   },
-  texto: { color: colors.textSecondary, fontSize: 15, flexShrink: 1 },
-  textoPreenchido: { color: colors.textPrimary, fontWeight: "500" },
+  iconeBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    backgroundColor: colors.primaryTranslucent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  texto: { color: colors.textSecondary, fontSize: 15, flexShrink: 1, flexGrow: 1 },
+  textoPreenchido: { color: colors.textPrimary, fontWeight: "600" },
 });

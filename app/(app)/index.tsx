@@ -5,26 +5,40 @@ import { MapaCorrida } from "@/components/mapa-corrida";
 import { ModalNomePassageiro } from "@/components/modal-nome-passageiro";
 import { useEnderecosCorrida } from "@/hooks/use-enderecos-corrida";
 import { useEstimativaCorrida } from "@/hooks/use-estimativa-corrida";
+import { useMotoristasProximos } from "@/hooks/use-motoristas-proximos";
 import { useTarifa } from "@/hooks/use-tarifa";
 import { useTecladoAtivo } from "@/hooks/use-teclado-ativo";
 import { useWebsocketCorrida } from "@/hooks/use-websocket-corrida";
 import { decodificarPolilinha } from "@/lib/polilinha";
-import { colors, radius } from "@/lib/theme";
-import BottomSheet, {
-  BottomSheetBackdrop,
-  type BottomSheetBackdropProps,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
+import { colors, radius, shadow, spacing } from "@/lib/theme";
+import { useAuth } from "@/hooks/use-auth";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Keyboard, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
 import type MapView from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
+
+const LOGOUT_ROW_HEIGHT = 44;
+const LOGOUT_ROW_GAP = spacing.sm;
 
 export default function Index() {
   const insets = useSafeAreaInsets();
+  const { logout } = useAuth();
   const mapaRef = useRef<MapView>(null);
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ["45%"], []);
+  const [buscaVisivel, setBuscaVisivel] = useState(false);
   const tecladoAtivo = useTecladoAtivo();
 
   const tarifa = useTarifa();
@@ -46,16 +60,17 @@ export default function Index() {
   } = useEnderecosCorrida();
 
   const { state: ride, requestRide, cancelRide, reset: resetRide } = useWebsocketCorrida();
+  const motoristasProximos = useMotoristasProximos(coordOrigem);
 
   const [modalVisivel, setModalVisivel] = useState(false);
   const [nome, setNome] = useState("");
 
   const abrirBottomSheet = useCallback(() => {
-    bottomSheetRef.current?.expand();
+    setBuscaVisivel(true);
   }, []);
 
   const fecharBottomSheet = useCallback(() => {
-    bottomSheetRef.current?.close();
+    setBuscaVisivel(false);
   }, []);
 
   const abrirModalNome = useCallback(() => {
@@ -66,19 +81,6 @@ export default function Index() {
     setModalVisivel(false);
   }, []);
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        opacity={0.5}
-        pressBehavior="close"
-      />
-    ),
-    []
-  );
-
   const usarMinhaLocalizacao = useCallback(async () => {
     try {
       const coordenada = await usarMinhaLocalizacaoComoOrigem();
@@ -88,7 +90,11 @@ export default function Index() {
         longitudeDelta: 0.02,
       });
     } catch (e) {
-      Alert.alert("Oopss", e instanceof Error ? e.message : "Erro ao obter localização.");
+      Toast.show({
+        type: "error",
+        text1: "Não foi possível obter sua localização",
+        text2: e instanceof Error ? e.message : undefined,
+      });
     }
   }, [usarMinhaLocalizacaoComoOrigem]);
 
@@ -125,7 +131,11 @@ export default function Index() {
         animated: true,
       });
     } catch (e) {
-      Alert.alert("Oopss", e instanceof Error ? e.message : "Erro ao traçar rota.");
+      Toast.show({
+        type: "error",
+        text1: "Não foi possível traçar a rota",
+        text2: e instanceof Error ? e.message : undefined,
+      });
     }
   }, [enderecoOrigem, enderecoDestino, resolverCoordenadas, limpar, calcular, fecharBottomSheet]);
 
@@ -174,14 +184,41 @@ export default function Index() {
         coordOrigem={coordOrigem}
         coordDestino={coordDestino}
         driverLocation={ride.driverLocation}
+        motoristasProximos={ride.status === "idle" ? motoristasProximos : []}
         rota={rota}
         bottomOffset={estimativa ? 190 : 24}
         onRecentralizar={usarMinhaLocalizacao}
       />
 
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Sair da conta"
+        onPress={logout}
+        style={({ pressed }) => [
+          styles.logoutButton,
+          { top: insets.top + 12 },
+          pressed && styles.logoutButtonPressed,
+        ]}
+      >
+        <Ionicons name="log-out-outline" size={20} color={colors.textOnDark} />
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Meu perfil"
+        onPress={() => router.push("/perfil")}
+        style={({ pressed }) => [
+          styles.profileButton,
+          { top: insets.top + 12 },
+          pressed && styles.logoutButtonPressed,
+        ]}
+      >
+        <Ionicons name="person" size={20} color={colors.textOnDark} />
+      </Pressable>
+
       <GatilhoEndereco
         enderecoDestino={enderecoDestino}
-        top={insets.top + 12}
+        top={insets.top + 12 + LOGOUT_ROW_HEIGHT + LOGOUT_ROW_GAP}
         desabilitado={tecladoAtivo || ride.status !== "idle"}
         onPress={abrirBottomSheet}
       />
@@ -191,40 +228,49 @@ export default function Index() {
           estimativa={estimativa!}
           desabilitado={tecladoAtivo}
           ride={ride}
+          enderecoOrigem={enderecoOrigem}
+          enderecoDestino={enderecoDestino}
           onChamarMotorista={abrirModalNome}
           onCancelar={handleCancelarCorrida}
         />
       )}
 
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={-1}
-        snapPoints={snapPoints}
-        backdropComponent={renderBackdrop}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        enablePanDownToClose
-        backgroundStyle={styles.sheetFundo}
-        handleIndicatorStyle={styles.sheetHandle}
+      <Modal
+        visible={buscaVisivel}
+        transparent
+        animationType="slide"
+        onRequestClose={fecharBottomSheet}
+        statusBarTranslucent
       >
-        <BottomSheetView style={styles.flex}>
-          <FormularioEnderecos
-            enderecoOrigem={enderecoOrigem}
-            enderecoDestino={enderecoDestino}
-            buscandoLocalizacao={buscandoLocalizacao}
-            carregando={carregando}
-            erro={erro}
-            sugestoesOrigem={sugestoesOrigem}
-            sugestoesDestino={sugestoesDestino}
-            onChangeEnderecoOrigem={handleChangeEnderecoOrigem}
-            onChangeEnderecoDestino={handleChangeEnderecoDestino}
-            onSelecionarSugestaoOrigem={escolherSugestaoOrigem}
-            onSelecionarSugestaoDestino={escolherSugestaoDestino}
-            onUsarMinhaLocalizacao={usarMinhaLocalizacao}
-            onChamarCorrida={chamarCorrida}
-          />
-        </BottomSheetView>
-      </BottomSheet>
+        <TouchableWithoutFeedback onPress={fecharBottomSheet}>
+          <View style={styles.modalBackdrop} />
+        </TouchableWithoutFeedback>
+
+        <KeyboardAvoidingView
+          style={styles.modalSheetWrap}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          pointerEvents="box-none"
+        >
+          <View style={styles.sheetFundo}>
+            <View style={styles.sheetHandle} />
+            <FormularioEnderecos
+              enderecoOrigem={enderecoOrigem}
+              enderecoDestino={enderecoDestino}
+              buscandoLocalizacao={buscandoLocalizacao}
+              carregando={carregando}
+              erro={erro}
+              sugestoesOrigem={sugestoesOrigem}
+              sugestoesDestino={sugestoesDestino}
+              onChangeEnderecoOrigem={handleChangeEnderecoOrigem}
+              onChangeEnderecoDestino={handleChangeEnderecoDestino}
+              onSelecionarSugestaoOrigem={escolherSugestaoOrigem}
+              onSelecionarSugestaoDestino={escolherSugestaoDestino}
+              onUsarMinhaLocalizacao={usarMinhaLocalizacao}
+              onChamarCorrida={chamarCorrida}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <ModalNomePassageiro
         visivel={modalVisivel}
@@ -245,14 +291,57 @@ export default function Index() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  logoutButton: {
+    position: "absolute",
+    right: spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceDark,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+    ...shadow.card,
+    shadowOpacity: 0.22,
+  },
+  profileButton: {
+    position: "absolute",
+    right: spacing.md + 44 + spacing.sm,
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+    backgroundColor: colors.surfaceDark,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+    ...shadow.card,
+    shadowOpacity: 0.22,
+  },
+  logoutButtonPressed: {
+    opacity: 0.85,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.overlay,
+  },
+  modalSheetWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-end",
+  },
   sheetFundo: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
+    maxHeight: "70%",
+    paddingBottom: spacing.md,
   },
   sheetHandle: {
+    alignSelf: "center",
     backgroundColor: colors.border,
     width: 40,
+    height: 4,
+    borderRadius: radius.full,
+    marginTop: spacing.sm,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

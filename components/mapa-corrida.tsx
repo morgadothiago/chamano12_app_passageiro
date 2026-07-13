@@ -3,6 +3,7 @@ import { forwardRef, memo } from "react";
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, Animated } from "react-native-maps";
 import { mapaEstiloMinimalista } from "@/lib/mapa-estilo";
+import type { MotoristaProximo } from "@/lib/api-rides";
 import type { Coordenada } from "@/lib/routes";
 import { colors, radius, shadow } from "@/lib/theme";
 
@@ -10,13 +11,25 @@ type MapaCorridaProps = {
   coordOrigem: Coordenada | null;
   coordDestino: Coordenada | null;
   driverLocation: Coordenada | null;
+  motoristasProximos?: MotoristaProximo[];
   rota: Coordenada[];
   bottomOffset?: number;
   onRecentralizar?: () => void;
 };
 
 export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
-  ({ coordOrigem, coordDestino, driverLocation, rota, bottomOffset = 24, onRecentralizar }, ref) => {
+  (
+    {
+      coordOrigem,
+      coordDestino,
+      driverLocation,
+      motoristasProximos = [],
+      rota,
+      bottomOffset = 24,
+      onRecentralizar,
+    },
+    ref,
+  ) => {
     return (
       <View style={styles.flex}>
         <MapView
@@ -89,6 +102,21 @@ export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
               </View>
             </Marker>
           )}
+
+          {motoristasProximos.map((motorista) => (
+            <Marker
+              key={motorista.driverId}
+              coordinate={{ latitude: motorista.lat, longitude: motorista.lng }}
+              title={motorista.driverName}
+              description={motorista.vehicle}
+              anchor={{ x: 0.5, y: 0.5 }}
+              zIndex={2}
+            >
+              <View style={styles.motoristaProximoMarker}>
+                <Ionicons name="car-sport" size={14} color={colors.primary} />
+              </View>
+            </Marker>
+          ))}
         </MapView>
 
         {onRecentralizar && (
@@ -148,7 +176,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.surfaceDark,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 2,
@@ -162,12 +190,12 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
   },
   pinPonta: {
     width: 12,
     height: 12,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.surfaceDark,
     transform: [{ rotate: "45deg" }],
     marginTop: -8,
     zIndex: 1,
@@ -189,12 +217,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 3,
-    borderColor: "#ffffff",
+    borderColor: colors.white,
     shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 5,
+  },
+  motoristaProximoMarker: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.white,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 3,
   },
   botaoRecentralizar: {
     position: "absolute",
@@ -202,9 +245,10 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.full,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     justifyContent: "center",
     alignItems: "center",
     ...shadow.card,
+    shadowOpacity: 0.2,
   },
 });

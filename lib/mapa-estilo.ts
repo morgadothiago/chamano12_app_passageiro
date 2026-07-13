@@ -2,7 +2,7 @@ export const mapaEstiloMinimalista = [
   { featureType: "poi.business", stylers: [{ visibility: "off" }] },
   { featureType: "poi.medical", stylers: [{ visibility: "off" }] },
   { featureType: "poi.school", stylers: [{ visibility: "off" }] },
-  { featureType: "poi.sport_complex", stylers: [{ visibility: "off" }] },
+  { featureType: "poi.sports_complex", stylers: [{ visibility: "off" }] },
   { featureType: "poi.attraction", stylers: [{ visibility: "off" }] },
   { featureType: "poi.government", stylers: [{ visibility: "off" }] },
   {
@@ -73,11 +73,11 @@ export const mapaEstiloMinimalista = [
   {
     featureType: "water",
     elementType: "geometry",
-    stylers: [{ color: "#CFE8FA" }],
+    stylers: [{ color: "#D6EAE8" }],
   },
   {
     featureType: "water",
     elementType: "labels.text.fill",
-    stylers: [{ color: "#7FA8C9" }],
+    stylers: [{ color: "#7FA69E" }],
   },
 ];
