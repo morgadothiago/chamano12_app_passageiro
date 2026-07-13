@@ -12,6 +12,7 @@ import { useTecladoAtivo } from "@/hooks/use-teclado-ativo";
 import { useWebsocketCorrida } from "@/hooks/use-websocket-corrida";
 import { decodificarPolilinha } from "@/lib/polilinha";
 import { colors, radius, shadow, spacing } from "@/lib/theme";
+import type { FormaPagamento } from "@/types/ride";
 import { useAuth } from "@/hooks/use-auth";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -72,6 +73,7 @@ export default function Index() {
 
   const [modalVisivel, setModalVisivel] = useState(false);
   const [nome, setNome] = useState("");
+  const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>("dinheiro");
 
   const abrirBottomSheet = useCallback(() => {
     setBuscaVisivel(true);
@@ -189,11 +191,12 @@ export default function Index() {
       destinoLng: coordDestino.longitude,
       distanciaKm: estimativa.distanciaKm,
       valor: estimativa.valorEstimado,
+      formaPagamento,
     });
 
     setModalVisivel(false);
     setNome("");
-  }, [nome, coordOrigem, coordDestino, estimativa, enderecoOrigem, enderecoDestino, requestRide]);
+  }, [nome, coordOrigem, coordDestino, estimativa, enderecoOrigem, enderecoDestino, formaPagamento, requestRide]);
 
   const handleEnviarNome = useCallback(() => {
     if (!nome.trim()) {
@@ -213,6 +216,11 @@ export default function Index() {
     resetRide();
     limpar();
   }, [cancelRide, resetRide, limpar]);
+
+  const handleFinalizarResumo = useCallback(() => {
+    resetRide();
+    limpar();
+  }, [resetRide, limpar]);
 
   return (
     <View style={styles.flex}>
@@ -273,6 +281,7 @@ export default function Index() {
               enderecoDestino={enderecoDestino}
               onChamarMotorista={abrirModalNome}
               onCancelar={handleCancelarCorrida}
+              onFinalizarResumo={handleFinalizarResumo}
             />
           )}
         </>
@@ -316,6 +325,7 @@ export default function Index() {
               erro={erro}
               sugestoesOrigem={sugestoesOrigem}
               sugestoesDestino={sugestoesDestino}
+              formaPagamento={formaPagamento}
               onChangeEnderecoOrigem={handleChangeEnderecoOrigem}
               onChangeEnderecoDestino={handleChangeEnderecoDestino}
               onSelecionarSugestaoOrigem={escolherSugestaoOrigem}
@@ -324,6 +334,7 @@ export default function Index() {
               onChamarCorrida={chamarCorrida}
               onAjustarOrigemNoMapa={() => abrirSelecaoNoMapa("origem")}
               onAjustarDestinoNoMapa={() => abrirSelecaoNoMapa("destino")}
+              onSelecionarFormaPagamento={setFormaPagamento}
             />
           </View>
         </KeyboardAvoidingView>

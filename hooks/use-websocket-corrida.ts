@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert } from "react-native";
 import Toast from "react-native-toast-message";
 import { connect, disconnect, getSocket } from "@/lib/websocket";
 import type { Coordenada } from "@/lib/routes";
+import type { FormaPagamento } from "@/types/ride";
 
 export type RideStatus =
   | "idle"
@@ -21,6 +21,8 @@ export type RideState = {
   driverName: string | null;
   vehicle: string | null;
   driverLocation: Coordenada | null;
+  valorFinal: number | null;
+  formaPagamentoFinal: FormaPagamento | null;
   error: string | null;
 };
 
@@ -34,6 +36,7 @@ type RequestRideParams = {
   destinoLng: number;
   distanciaKm: number;
   valor: number;
+  formaPagamento: FormaPagamento;
 };
 
 export function useWebsocketCorrida() {
@@ -44,6 +47,8 @@ export function useWebsocketCorrida() {
     driverName: null,
     vehicle: null,
     driverLocation: null,
+    valorFinal: null,
+    formaPagamentoFinal: null,
     error: null,
   });
 
@@ -83,9 +88,13 @@ export function useWebsocketCorrida() {
       setState((prev) => ({ ...prev, status: "started" }));
     };
 
-    const handleCompleted = (data: { rideId: string }) => {
-      setState((prev) => ({ ...prev, status: "completed" }));
-      Alert.alert("Corrida finalizada", "Obrigado por viajar conosco!");
+    const handleCompleted = (data: { rideId: string; valor: number; formaPagamento: FormaPagamento }) => {
+      setState((prev) => ({
+        ...prev,
+        status: "completed",
+        valorFinal: data.valor,
+        formaPagamentoFinal: data.formaPagamento,
+      }));
     };
 
     const handleCancelled = (data: { rideId: string; canceladoPor: string; motivo?: string }) => {
@@ -134,6 +143,8 @@ export function useWebsocketCorrida() {
         driverName: null,
         vehicle: null,
         driverLocation: null,
+        valorFinal: null,
+        formaPagamentoFinal: null,
         error: null,
       });
 
@@ -159,6 +170,8 @@ export function useWebsocketCorrida() {
       driverName: null,
       vehicle: null,
       driverLocation: null,
+      valorFinal: null,
+      formaPagamentoFinal: null,
       error: null,
     });
   }, []);

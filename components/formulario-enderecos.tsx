@@ -4,6 +4,8 @@ import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SugestaoLugar } from "@/lib/autocomplete";
 import { colors, radius, shadow, spacing } from "@/lib/theme";
+import type { FormaPagamento } from "@/types/ride";
+import { SeletorPagamento } from "./seletor-pagamento";
 
 type FormularioEnderecosProps = {
   enderecoOrigem: string;
@@ -13,6 +15,7 @@ type FormularioEnderecosProps = {
   erro: string | null;
   sugestoesOrigem: SugestaoLugar[];
   sugestoesDestino: SugestaoLugar[];
+  formaPagamento: FormaPagamento;
   onChangeEnderecoOrigem: (texto: string) => void;
   onChangeEnderecoDestino: (texto: string) => void;
   onSelecionarSugestaoOrigem: (sugestao: SugestaoLugar) => void;
@@ -21,6 +24,7 @@ type FormularioEnderecosProps = {
   onChamarCorrida: () => void;
   onAjustarOrigemNoMapa: () => void;
   onAjustarDestinoNoMapa: () => void;
+  onSelecionarFormaPagamento: (forma: FormaPagamento) => void;
 };
 
 function ListaSugestoes({
@@ -59,6 +63,7 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
   erro,
   sugestoesOrigem,
   sugestoesDestino,
+  formaPagamento,
   onChangeEnderecoOrigem,
   onChangeEnderecoDestino,
   onSelecionarSugestaoOrigem,
@@ -67,6 +72,7 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
   onChamarCorrida,
   onAjustarOrigemNoMapa,
   onAjustarDestinoNoMapa,
+  onSelecionarFormaPagamento,
 }: FormularioEnderecosProps) {
   const insets = useSafeAreaInsets();
 
@@ -141,6 +147,8 @@ export const FormularioEnderecos = memo(function FormularioEnderecos({
           </View>
         </View>
       </View>
+
+      <SeletorPagamento selecionado={formaPagamento} onSelecionar={onSelecionarFormaPagamento} />
 
       {erro && (
         <View style={styles.erroBox}>

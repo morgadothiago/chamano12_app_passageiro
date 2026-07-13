@@ -5,6 +5,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { Estimativa } from "@/hooks/use-estimativa-corrida";
 import type { RideState } from "@/hooks/use-websocket-corrida";
 import { colors, radius, shadow, spacing } from "@/lib/theme";
+import type { FormaPagamento } from "@/types/ride";
+
+const ROTULO_FORMA_PAGAMENTO: Record<FormaPagamento, string> = {
+  dinheiro: "Dinheiro",
+  cartao: "Cartão",
+  pix: "Pix",
+};
+
+const ICONE_FORMA_PAGAMENTO: Record<FormaPagamento, keyof typeof Ionicons.glyphMap> = {
+  dinheiro: "cash-outline",
+  cartao: "card-outline",
+  pix: "qr-code-outline",
+};
 
 type CardEstimativaProps = {
   estimativa: Estimativa;
@@ -14,6 +27,7 @@ type CardEstimativaProps = {
   enderecoDestino: string;
   onChamarMotorista: () => void;
   onCancelar: () => void;
+  onFinalizarResumo: () => void;
 };
 
 export const CardEstimativa = memo(function CardEstimativa({
@@ -24,6 +38,7 @@ export const CardEstimativa = memo(function CardEstimativa({
   enderecoDestino,
   onChamarMotorista,
   onCancelar,
+  onFinalizarResumo,
 }: CardEstimativaProps) {
   const [expandido, setExpandido] = useState(false);
 
@@ -120,6 +135,30 @@ export const CardEstimativa = memo(function CardEstimativa({
               </TouchableOpacity>
             </View>
           )}
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (ride.status === "completed") {
+    const forma = ride.formaPagamentoFinal ?? "dinheiro";
+    return (
+      <SafeAreaView edges={["bottom"]} style={styles.cardEstimativa}>
+        <View style={styles.resumoContainer}>
+          <View style={styles.resumoIconeBadge}>
+            <Ionicons name="checkmark" size={26} color={colors.success} />
+          </View>
+          <Text style={styles.resumoTitulo}>Corrida finalizada</Text>
+          <Text style={styles.resumoValor}>
+            R$ {(ride.valorFinal ?? 0).toFixed(2).replace(".", ",")}
+          </Text>
+          <View style={styles.resumoFormaPagamento}>
+            <Ionicons name={ICONE_FORMA_PAGAMENTO[forma]} size={16} color={colors.textSecondary} />
+            <Text style={styles.resumoFormaPagamentoTexto}>{ROTULO_FORMA_PAGAMENTO[forma]}</Text>
+          </View>
+          <TouchableOpacity activeOpacity={0.85} style={styles.botao} onPress={onFinalizarResumo}>
+            <Text style={styles.botaoTexto}>OK</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -279,6 +318,26 @@ const styles = StyleSheet.create({
   },
   erroTitulo: { fontWeight: "700", fontSize: 16, color: colors.textPrimary, textAlign: "center" },
   erroTexto: { fontSize: 14, color: colors.textSecondary, textAlign: "center" },
+  resumoContainer: { alignItems: "center", gap: spacing.xs, paddingVertical: spacing.sm },
+  resumoIconeBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.full,
+    backgroundColor: colors.successBackground,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: spacing.xs,
+  },
+  resumoTitulo: { fontWeight: "700", fontSize: 17, color: colors.textPrimary },
+  resumoValor: { fontWeight: "800", fontSize: 30, color: colors.textPrimary, letterSpacing: -0.5, marginTop: spacing.xs },
+  resumoFormaPagamento: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  resumoFormaPagamentoTexto: { color: colors.textSecondary, fontSize: 14, fontWeight: "500" },
   detalhesContainer: {
     gap: spacing.md,
     paddingTop: spacing.sm,
