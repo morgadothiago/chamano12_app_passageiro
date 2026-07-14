@@ -22,8 +22,17 @@ export type RideState = {
   driverName: string | null;
   vehicle: string | null;
   driverLocation: Coordenada | null;
+  distanciaKm: number | null;
   valorFinal: number | null;
   formaPagamentoFinal: FormaPagamento | null;
+  // Só preenchidos ao restaurar uma corrida ativa via
+  // `passenger:get-active-ride` (ver `handleActiveRide`) — o fluxo normal de
+  // pedir corrida já tem esse texto no estado local de `useEnderecosCorrida`,
+  // então esses campos servem de fallback pra tela não mostrar "Origem"/
+  // "Destino" em branco depois que o passageiro fecha e reabre o app com uma
+  // corrida em andamento.
+  origem: string | null;
+  destino: string | null;
   error: string | null;
 };
 
@@ -48,10 +57,14 @@ export function useWebsocketCorrida() {
     driverName: null,
     vehicle: null,
     driverLocation: null,
+    distanciaKm: null,
     valorFinal: null,
     formaPagamentoFinal: null,
+    origem: null,
+    destino: null,
     error: null,
   });
+  const [connected, setConnected] = useState(false);
 
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -145,6 +158,7 @@ export function useWebsocketCorrida() {
         origem: string;
         destino: string;
         valor: number;
+        distanciaKm: number | null;
         formaPagamento: FormaPagamento;
       } | null,
     ) => {
@@ -156,6 +170,9 @@ export function useWebsocketCorrida() {
         driverId: data.driverId,
         driverName: data.driverName,
         vehicle: data.vehicle,
+        distanciaKm: data.distanciaKm,
+        origem: data.origem,
+        destino: data.destino,
       }));
     };
 
@@ -164,6 +181,11 @@ export function useWebsocketCorrida() {
     connect().then((socket) => {
       if (cancelado) return;
       socketRef = socket;
+
+      setConnected(socket.connected);
+
+      socket.on("connect", () => setConnected(true));
+      socket.on("disconnect", () => setConnected(false));
 
       socket.on("ride:accepted", handleAccepted);
       socket.on("ride:driver-location", handleDriverLocation);
@@ -210,8 +232,11 @@ export function useWebsocketCorrida() {
         driverName: null,
         vehicle: null,
         driverLocation: null,
+        distanciaKm: params.distanciaKm,
         valorFinal: null,
         formaPagamentoFinal: null,
+        origem: params.origem,
+        destino: params.destino,
         error: null,
       });
 
@@ -237,8 +262,11 @@ export function useWebsocketCorrida() {
       driverName: null,
       vehicle: null,
       driverLocation: null,
+      distanciaKm: null,
       valorFinal: null,
       formaPagamentoFinal: null,
+      origem: null,
+      destino: null,
       error: null,
     });
     setChatMessages([]);
@@ -252,5 +280,5 @@ export function useWebsocketCorrida() {
     socket.emit("chat:send-message", { rideId, texto: texto.trim() });
   }, []);
 
-  return { state, chatMessages, sendChatMessage, requestRide, cancelRide, reset };
+  return { state, chatMessages, sendChatMessage, requestRide, cancelRide, reset, connected };
 }

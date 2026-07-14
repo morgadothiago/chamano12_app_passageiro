@@ -20,7 +20,7 @@ const ICONE_FORMA_PAGAMENTO: Record<FormaPagamento, keyof typeof Ionicons.glyphM
 };
 
 type CardEstimativaProps = {
-  estimativa: Estimativa;
+  estimativa: Estimativa | null;
   desabilitado: boolean;
   ride: RideState;
   enderecoOrigem: string;
@@ -67,6 +67,8 @@ export const CardEstimativa = memo(function CardEstimativa({
       </SafeAreaView>
     );
   }
+
+  if (ride.status === "cancelled") return null;
 
   if (ride.status === "accepted" || ride.status === "started") {
     const emViagem = ride.status === "started";
@@ -144,7 +146,13 @@ export const CardEstimativa = memo(function CardEstimativa({
               <View style={styles.detalhesInfoLinha}>
                 <View style={styles.info}>
                   <Ionicons name="navigate-outline" size={15} color={colors.textSecondary} />
-                  <Text style={styles.infoTexto}>{estimativa.distanciaKm.toFixed(1)} km até o destino</Text>
+                  <Text style={styles.infoTexto}>
+                    {estimativa
+                      ? `${estimativa.distanciaKm.toFixed(1)} km até o destino`
+                      : ride.distanciaKm
+                        ? `${ride.distanciaKm.toFixed(1)} km até o destino`
+                        : "— km"}
+                  </Text>
                 </View>
               </View>
 
@@ -204,6 +212,8 @@ export const CardEstimativa = memo(function CardEstimativa({
       </SafeAreaView>
     );
   }
+
+  if (!estimativa) return null;
 
   return (
     <SafeAreaView
@@ -282,18 +292,20 @@ const styles = StyleSheet.create({
   buscandoSubtexto: { fontSize: 13, color: colors.textSecondary, textAlign: "center" },
   botaoCancelar: {
     marginTop: spacing.md,
-    paddingVertical: 10,
+    paddingVertical: spacing.sm + 4,
     paddingHorizontal: spacing.xl,
+    minHeight: 44,
+    justifyContent: "center",
     borderRadius: radius.md,
     borderWidth: 1.5,
     borderColor: colors.border,
   },
   textoCancelar: { color: colors.textSecondary, fontWeight: "700" },
   motoristaContainer: { gap: spacing.md },
-  motoristaHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  motoristaHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 44 },
   botaoChat: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radius.full,
     backgroundColor: colors.primaryTranslucent,
     alignItems: "center",
@@ -407,6 +419,8 @@ const styles = StyleSheet.create({
   detalhesInfoLinha: { flexDirection: "row", alignItems: "center" },
   botaoCancelarCorrida: {
     paddingVertical: 12,
+    minHeight: 44,
+    justifyContent: "center",
     borderRadius: radius.md,
     alignItems: "center",
     borderWidth: 1.5,

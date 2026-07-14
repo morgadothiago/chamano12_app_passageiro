@@ -1,4 +1,5 @@
 import { AnuncioBanner } from "@/components/anuncio-banner";
+import { AppErrorBanner } from "@/components/app-error-banner";
 import { CardEstimativa } from "@/components/card-estimativa";
 import { ChatModal } from "@/components/chat-modal";
 import { FormularioEnderecos } from "@/components/formulario-enderecos";
@@ -7,18 +8,22 @@ import { MapaCorrida } from "@/components/mapa-corrida";
 import { ModalNomePassageiro } from "@/components/modal-nome-passageiro";
 import { SeletorEnderecoMapa } from "@/components/seletor-endereco-mapa";
 import { useEnderecosCorrida } from "@/hooks/use-enderecos-corrida";
+import { useErrorHandler } from "@/hooks/use-error-handler";
 import { useEstimativaCorrida } from "@/hooks/use-estimativa-corrida";
 import { useMotoristasProximos } from "@/hooks/use-motoristas-proximos";
 import { useTarifa } from "@/hooks/use-tarifa";
 import { useTecladoAtivo } from "@/hooks/use-teclado-ativo";
 import { useWebsocketCorrida } from "@/hooks/use-websocket-corrida";
+import { calcularRota, type Coordenada } from "@/lib/routes";
 import { decodificarPolilinha } from "@/lib/polilinha";
 import { colors, radius, shadow, spacing } from "@/lib/theme";
 import type { FormaPagamento } from "@/types/ride";
+import { getErrorMessage, isNetworkError } from "@/utils/error-utils";
 import { useAuth } from "@/hooks/use-auth";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RideStatus } from "@/hooks/use-websocket-corrida";
 import {
   ActivityIndicator,
   Alert,
@@ -45,9 +50,13 @@ export default function Index() {
   const mapaRef = useRef<MapView>(null);
   const [buscaVisivel, setBuscaVisivel] = useState(false);
   const tecladoAtivo = useTecladoAtivo();
+  const { showError, showBlockingError, hideError: hideBannerError } = useErrorHandler();
+
+  const [networkBannerVisivel, setNetworkBannerVisivel] = useState(false);
+  const [networkBannerMensagem, setNetworkBannerMensagem] = useState("");
 
   const tarifa = useTarifa();
-  const { estimativa, carregando, erro, calcular, limpar } = useEstimativaCorrida(tarifa);
+  const { estimativa, carregando, erro: estimativaErro, calcular, limpar } = useEstimativaCorrida(tarifa);
   const {
     enderecoOrigem,
     enderecoDestino,
@@ -77,6 +86,7 @@ export default function Index() {
     requestRide,
     cancelRide,
     reset: resetRide,
+    connected: wsConnected,
   } = useWebsocketCorrida();
   const motoristasProximos = useMotoristasProximos(coordOrigem);
 
@@ -191,33 +201,35 @@ export default function Index() {
         animated: true,
       });
     } catch (e) {
-      Toast.show({
-        type: "error",
-        text1: "Não foi possível traçar a rota",
-        text2: e instanceof Error ? e.message : undefined,
-      });
+      const msg = getErrorMessage(e);
+      showError("Não foi possível traçar a rota", msg);
     }
-  }, [enderecoOrigem, enderecoDestino, resolverCoordenadas, limpar, calcular, fecharBottomSheet]);
+  }, [enderecoOrigem, enderecoDestino, resolverCoordenadas, limpar, calcular, fecharBottomSheet, showError]);
 
   const confirmarChamada = useCallback(() => {
     if (!nome.trim() || !coordOrigem || !coordDestino || !estimativa) return;
 
-    requestRide({
-      passengerName: nome.trim(),
-      origem: enderecoOrigem,
-      origemLat: coordOrigem.latitude,
-      origemLng: coordOrigem.longitude,
-      destino: enderecoDestino,
-      destinoLat: coordDestino.latitude,
-      destinoLng: coordDestino.longitude,
-      distanciaKm: estimativa.distanciaKm,
-      valor: estimativa.valorEstimado,
-      formaPagamento,
-    });
+    try {
+      requestRide({
+        passengerName: nome.trim(),
+        origem: enderecoOrigem,
+        origemLat: coordOrigem.latitude,
+        origemLng: coordOrigem.longitude,
+        destino: enderecoDestino,
+        destinoLat: coordDestino.latitude,
+        destinoLng: coordDestino.longitude,
+        distanciaKm: estimativa.distanciaKm,
+        valor: estimativa.valorEstimado,
+        formaPagamento,
+      });
+    } catch (e) {
+      showError("Erro ao solicitar corrida", getErrorMessage(e));
+      return;
+    }
 
     setModalVisivel(false);
     setNome("");
-  }, [nome, coordOrigem, coordDestino, estimativa, enderecoOrigem, enderecoDestino, formaPagamento, requestRide]);
+  }, [nome, coordOrigem, coordDestino, estimativa, enderecoOrigem, enderecoDestino, formaPagamento, requestRide, showError]);
 
   const handleEnviarNome = useCallback(() => {
     if (!nome.trim()) {
@@ -232,6 +244,71 @@ export default function Index() {
     [estimativa]
   );
 
+  const [rotaAtiva, setRotaAtiva] = useState<Coordenada[]>([]);
+  const [etaTexto, setEtaTexto] = useState<string | null>(null);
+  const ultimoStatusRotaRef = useRef<RideStatus | null>(null);
+
+  useEffect(() => {
+    if (ultimoStatusRotaRef.current === ride.status) return;
+    ultimoStatusRotaRef.current = ride.status;
+
+    if (ride.status === "accepted") {
+      if (!ride.driverLocation || !coordOrigem) {
+        setRotaAtiva([]);
+        setEtaTexto(null);
+        return;
+      }
+      calcularRota(ride.driverLocation, coordOrigem)
+        .then((r) => {
+          setRotaAtiva(decodificarPolilinha(r.polilinha));
+          setEtaTexto(`Motorista chega em ${Math.round(r.duracaoMinutos)} min`);
+        })
+        .catch(() => {
+          setRotaAtiva([]);
+          setEtaTexto(null);
+        });
+    } else if (ride.status === "started") {
+      if (!coordOrigem || !coordDestino) {
+        setRotaAtiva([]);
+        setEtaTexto(null);
+        return;
+      }
+      calcularRota(coordOrigem, coordDestino)
+        .then((r) => {
+          setRotaAtiva(decodificarPolilinha(r.polilinha));
+          setEtaTexto(`Chegada em ${Math.round(r.duracaoMinutos)} min`);
+        })
+        .catch(() => {
+          setRotaAtiva([]);
+          setEtaTexto(null);
+        });
+    } else {
+      setRotaAtiva([]);
+      setEtaTexto(null);
+    }
+  }, [ride.status, coordOrigem, coordDestino, ride.driverLocation]);
+
+  const rotaFinal = rotaAtiva.length > 0 ? rotaAtiva : rota;
+
+  useEffect(() => {
+    if (estimativaErro && isNetworkError(estimativaErro)) {
+      setNetworkBannerMensagem("Problema de conexão ao calcular rota. Verifique sua internet.");
+      setNetworkBannerVisivel(true);
+    }
+  }, [estimativaErro]);
+
+  useEffect(() => {
+    if (wsConnected === false && ride.status === "idle") {
+      setNetworkBannerMensagem("Sem conexão com o servidor. Algumas funcionalidades podem estar indisponíveis.");
+      setNetworkBannerVisivel(true);
+    } else if (wsConnected === true) {
+      // Sem isso, o banner ficava preso na tela mesmo depois do socket
+      // reconectar sozinho (retry automático do socket.io) — o usuário via
+      // "sem conexão" mesmo já estando conectado de novo.
+      setNetworkBannerVisivel(false);
+    }
+  }, [wsConnected, ride.status]);
+
   const handleCancelarCorrida = useCallback(() => {
     cancelRide();
     resetRide();
@@ -245,13 +322,19 @@ export default function Index() {
 
   return (
     <View style={styles.flex}>
+      <AppErrorBanner
+        visible={networkBannerVisivel}
+        message={networkBannerMensagem}
+        onDismiss={() => setNetworkBannerVisivel(false)}
+      />
       <MapaCorrida
         ref={mapaRef}
         coordOrigem={coordOrigem}
         coordDestino={coordDestino}
         driverLocation={ride.driverLocation}
         motoristasProximos={ride.status === "idle" ? motoristasProximos : []}
-        rota={rota}
+        rota={rotaFinal}
+        etaTexto={etaTexto}
         bottomOffset={estimativa ? 190 : 24}
         onRecentralizar={usarMinhaLocalizacao}
         modoSelecaoCentral={modoMapaAtivo}
@@ -286,22 +369,24 @@ export default function Index() {
             <Ionicons name="person" size={20} color={colors.textOnDark} />
           </Pressable>
 
-          <GatilhoEndereco
-            enderecoDestino={enderecoDestino}
-            top={insets.top + 12 + LOGOUT_ROW_HEIGHT + LOGOUT_ROW_GAP}
-            desabilitado={tecladoAtivo || ride.status !== "idle"}
-            onPress={abrirBottomSheet}
-          />
+          {!buscaVisivel && (
+            <GatilhoEndereco
+              enderecoDestino={enderecoDestino}
+              top={insets.top + 12 + LOGOUT_ROW_HEIGHT + LOGOUT_ROW_GAP}
+              desabilitado={tecladoAtivo || ride.status !== "idle"}
+              onPress={abrirBottomSheet}
+            />
+          )}
 
           {!estimativa && ride.status === "idle" && <AnuncioBanner />}
 
           {(estimativa || ride.status !== "idle") && (
             <CardEstimativa
-              estimativa={estimativa!}
+              estimativa={estimativa}
               desabilitado={tecladoAtivo}
               ride={ride}
-              enderecoOrigem={enderecoOrigem}
-              enderecoDestino={enderecoDestino}
+              enderecoOrigem={enderecoOrigem || ride.origem || ""}
+              enderecoDestino={enderecoDestino || ride.destino || ""}
               chatNaoLidas={chatNaoLidas}
               onChamarMotorista={abrirModalNome}
               onCancelar={handleCancelarCorrida}
@@ -347,7 +432,7 @@ export default function Index() {
               enderecoDestino={enderecoDestino}
               buscandoLocalizacao={buscandoLocalizacao}
               carregando={carregando}
-              erro={erro}
+               erro={estimativaErro}
               sugestoesOrigem={sugestoesOrigem}
               sugestoesDestino={sugestoesDestino}
               formaPagamento={formaPagamento}

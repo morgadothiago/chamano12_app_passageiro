@@ -13,6 +13,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AuthHero } from "@/components/auth/AuthHero";
 import { ControlledInput } from "@/components/form/ControlledInput";
@@ -55,40 +56,42 @@ export default function EsqueciSenhaScreen() {
           onBackPress={() => router.back()}
         />
 
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <ControlledInput
-              control={control}
-              name="email"
-              label="E-mail"
-              placeholder="voce@exemplo.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              leftIcon="mail-outline"
-            />
+        <SafeAreaView edges={["bottom"]} style={styles.flex}>
+          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+              <ControlledInput
+                control={control}
+                name="email"
+                label="E-mail"
+                placeholder="voce@exemplo.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                leftIcon="mail-outline"
+              />
 
-            {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
+              {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
 
-            {successMessage ? (
-              <View style={styles.successBox}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                <Text style={styles.successText}>{successMessage}</Text>
+              {successMessage ? (
+                <View style={styles.successBox}>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                  <Text style={styles.successText}>{successMessage}</Text>
+                </View>
+              ) : null}
+
+              <Button
+                label="Enviar instruções"
+                onPress={handleSubmit(onSubmit)}
+                loading={isSubmitting}
+                style={styles.submitButton}
+              />
+
+              <View style={styles.trustRow}>
+                <Ionicons name="shield-checkmark-outline" size={14} color={colors.textMuted} />
+                <Text style={styles.trustText}>Seus dados ficam protegidos com criptografia</Text>
               </View>
-            ) : null}
-
-            <Button
-              label="Enviar instruções"
-              onPress={handleSubmit(onSubmit)}
-              loading={isSubmitting}
-              style={styles.submitButton}
-            />
-
-            <View style={styles.trustRow}>
-              <Ionicons name="shield-checkmark-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.trustText}>Seus dados ficam protegidos com criptografia</Text>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </View>
     </TouchableWithoutFeedback>
   );

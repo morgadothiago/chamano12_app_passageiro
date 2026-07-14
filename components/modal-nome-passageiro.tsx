@@ -129,6 +129,8 @@ const styles = StyleSheet.create({
   botaoSecundario: {
     flex: 1,
     paddingVertical: 13,
+    minHeight: 44,
+    justifyContent: "center",
     borderRadius: radius.md,
     alignItems: "center",
     backgroundColor: colors.background,
@@ -139,6 +141,8 @@ const styles = StyleSheet.create({
   botaoPrimario: {
     flex: 1,
     paddingVertical: 13,
+    minHeight: 44,
+    justifyContent: "center",
     borderRadius: radius.md,
     alignItems: "center",
     backgroundColor: colors.primary,

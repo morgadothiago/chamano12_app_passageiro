@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: 14,
     paddingHorizontal: spacing.md,
+    minHeight: 44,
   },
   iconeBadge: {
     width: 32,

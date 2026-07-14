@@ -36,41 +36,50 @@ export function ChatModal({ visible, driverName, messages, onSend, onClose }: Ch
   return (
     <View style={styles.overlay}>
       <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
-        <View style={styles.header}>
-          <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Fechar chat">
-            <Ionicons name="chevron-down" size={26} color={colors.textPrimary} />
-          </Pressable>
-          <Text style={styles.headerTitulo}>{driverName}</Text>
-          <View style={{ width: 26 }} />
-        </View>
-
-        <FlatList
-          data={messages}
-          keyExtractor={(_, i) => String(i)}
-          contentContainerStyle={styles.lista}
-          renderItem={({ item }) => (
-            <View
-              style={[
-                styles.bolha,
-                item.remetente === "passageiro" ? styles.bolhaPropria : styles.bolhaOutro,
-              ]}
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={styles.header}>
+            <Pressable
+              onPress={onClose}
+              style={styles.botaoFechar}
+              accessibilityRole="button"
+              accessibilityLabel="Fechar chat"
             >
-              <Text
+              <Ionicons name="chevron-down" size={26} color={colors.textPrimary} />
+            </Pressable>
+            <Text style={styles.headerTitulo}>{driverName}</Text>
+            <View style={{ width: 26 }} />
+          </View>
+
+          <FlatList
+            data={messages}
+            keyExtractor={(_, i) => String(i)}
+            contentContainerStyle={styles.lista}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <View
                 style={[
-                  styles.bolhaTexto,
-                  item.remetente === "passageiro" && styles.bolhaTextoPropria,
+                  styles.bolha,
+                  item.remetente === "passageiro" ? styles.bolhaPropria : styles.bolhaOutro,
                 ]}
               >
-                {item.texto}
-              </Text>
-            </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.vazioTexto}>Nenhuma mensagem ainda. Diga oi pro motorista!</Text>
-          }
-        />
+                <Text
+                  style={[
+                    styles.bolhaTexto,
+                    item.remetente === "passageiro" && styles.bolhaTextoPropria,
+                  ]}
+                >
+                  {item.texto}
+                </Text>
+              </View>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.vazioTexto}>Nenhuma mensagem ainda. Diga oi pro motorista!</Text>
+            }
+          />
 
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
@@ -98,6 +107,7 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   root: { flex: 1 },
+  flex: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -108,6 +118,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   headerTitulo: { fontSize: 17, fontWeight: "700", color: colors.textPrimary },
+  botaoFechar: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   lista: { padding: spacing.md, gap: spacing.sm, flexGrow: 1 },
   bolha: {
     maxWidth: "80%",

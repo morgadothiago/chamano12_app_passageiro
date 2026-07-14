@@ -14,6 +14,7 @@ const config: ExpoConfig = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.thiagomorgado.passageiro",
+    deploymentTarget: "15.1",
     config: {
       googleMapsApiKey,
     },
@@ -62,6 +63,20 @@ const config: ExpoConfig = {
         },
       },
     ],
+    [
+      "expo-build-properties",
+      {
+        ios: {
+          buildReactNativeFromSource: true,
+          deploymentTarget: "15.1",
+        },
+        android: {
+          compileSdkVersion: 36,
+          targetSdkVersion: 36,
+          minSdkVersion: 26,
+        },
+      },
+    ],
   ],
   extra: {
     eas: {
@@ -71,7 +86,6 @@ const config: ExpoConfig = {
   },
   experiments: {
     typedRoutes: true,
-    reactCompiler: true,
   },
 }
 

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import { router } from "expo-router";
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors, radius, shadow, spacing } from "@/lib/theme";
@@ -31,7 +31,7 @@ function InfoRow({ icon, label, value }: InfoRowProps) {
 }
 
 export default function PerfilScreen() {
-  const { profile, isLoading } = usePassengerProfile();
+  const { profile, isLoading, refresh } = usePassengerProfile();
   const { upload, isUploading } = useAvatarUpload();
 
   const handleTrocarFoto = () => {
@@ -42,10 +42,38 @@ export default function PerfilScreen() {
     ]);
   };
 
-  if (isLoading || !profile) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingRoot} edges={["top"]}>
         <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  // Sem isso, uma falha na request de perfil (rede instável, sessão
+  // expirada) deixava a tela presa num spinner infinito, sem nenhuma forma
+  // de sair a não ser fechar o app — não tinha erro, retry nem navegação.
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.loadingRoot} edges={["top"]}>
+        <Ionicons name="alert-circle-outline" size={40} color={colors.textMuted} />
+        <Text style={styles.erroTexto}>Não foi possível carregar seu perfil.</Text>
+        <Pressable
+          style={({ pressed }) => [styles.botaoTentarNovamente, pressed && styles.botaoTentarNovamentePressed]}
+          onPress={() => refresh()}
+          accessibilityRole="button"
+          accessibilityLabel="Tentar carregar o perfil novamente"
+        >
+          <Text style={styles.botaoTentarNovamenteTexto}>Tentar novamente</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [styles.botaoVoltarErro, pressed && styles.botaoTentarNovamentePressed]}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
+          <Text style={styles.botaoVoltarErroTexto}>Voltar</Text>
+        </Pressable>
       </SafeAreaView>
     );
   }
@@ -61,9 +89,17 @@ export default function PerfilScreen() {
   return (
     <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       <View style={styles.header}>
-        <Ionicons name="chevron-back" size={24} color={colors.textPrimary} onPress={() => router.back()} />
+        <Pressable
+          style={styles.headerBackButton}
+          onPress={() => router.back()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
+          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        </Pressable>
         <Text style={styles.headerTitle}>Meu perfil</Text>
-        <View style={{ width: 24 }} />
+        <View style={{ width: 44 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -81,13 +117,15 @@ export default function PerfilScreen() {
                 <ActivityIndicator size="small" color={colors.white} />
               </View>
             ) : (
-              <Ionicons
-                name="camera"
-                size={18}
-                color={colors.white}
+              <Pressable
                 style={styles.avatarEditBadge}
                 onPress={handleTrocarFoto}
-              />
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Trocar foto de perfil"
+              >
+                <Ionicons name="camera" size={18} color={colors.white} />
+              </Pressable>
             )}
           </View>
           <Text style={styles.nome}>{profile.nome}</Text>
@@ -113,6 +151,43 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  erroTexto: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+  botaoTentarNovamente: {
+    marginTop: spacing.sm,
+    minHeight: 44,
+    minWidth: 180,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+  },
+  botaoTentarNovamentePressed: {
+    opacity: 0.85,
+  },
+  botaoTentarNovamenteTexto: {
+    color: colors.white,
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  botaoVoltarErro: {
+    minHeight: 44,
+    minWidth: 180,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+  },
+  botaoVoltarErroTexto: {
+    color: colors.textSecondary,
+    fontWeight: "600",
+    fontSize: 15,
   },
   header: {
     flexDirection: "row",
@@ -120,6 +195,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+  },
+  headerBackButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 17,
@@ -169,9 +250,8 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    textAlign: "center",
-    textAlignVertical: "center",
-    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 2,
     borderColor: colors.background,
     ...shadow.card,

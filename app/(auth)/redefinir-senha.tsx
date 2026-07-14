@@ -13,6 +13,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
 import { AuthHero } from "@/components/auth/AuthHero";
@@ -57,49 +58,51 @@ export default function RedefinirSenhaScreen() {
           onBackPress={() => router.back()}
         />
 
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <ControlledInput
-              control={control}
-              name="code"
-              label="Código"
-              placeholder="000000"
-              keyboardType="number-pad"
-              maxLength={6}
-              leftIcon="key-outline"
-            />
-            <ControlledInput
-              control={control}
-              name="newPassword"
-              label="Nova senha"
-              placeholder="••••••••"
-              secureTextEntry
-              leftIcon="lock-closed-outline"
-            />
-            <ControlledInput
-              control={control}
-              name="confirmNewPassword"
-              label="Confirmar nova senha"
-              placeholder="••••••••"
-              secureTextEntry
-              leftIcon="lock-closed-outline"
-            />
+        <SafeAreaView edges={["bottom"]} style={styles.flex}>
+          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+              <ControlledInput
+                control={control}
+                name="code"
+                label="Código"
+                placeholder="000000"
+                keyboardType="number-pad"
+                maxLength={6}
+                leftIcon="key-outline"
+              />
+              <ControlledInput
+                control={control}
+                name="newPassword"
+                label="Nova senha"
+                placeholder="••••••••"
+                secureTextEntry
+                leftIcon="lock-closed-outline"
+              />
+              <ControlledInput
+                control={control}
+                name="confirmNewPassword"
+                label="Confirmar nova senha"
+                placeholder="••••••••"
+                secureTextEntry
+                leftIcon="lock-closed-outline"
+              />
 
-            {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
+              {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
 
-            <Button
-              label="Redefinir senha"
-              onPress={handleSubmit(onSubmit)}
-              loading={isSubmitting}
-              style={styles.submitButton}
-            />
+              <Button
+                label="Redefinir senha"
+                onPress={handleSubmit(onSubmit)}
+                loading={isSubmitting}
+                style={styles.submitButton}
+              />
 
-            <View style={styles.trustRow}>
-              <Ionicons name="shield-checkmark-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.trustText}>Seus dados ficam protegidos com criptografia</Text>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+              <View style={styles.trustRow}>
+                <Ionicons name="shield-checkmark-outline" size={14} color={colors.textMuted} />
+                <Text style={styles.trustText}>Seus dados ficam protegidos com criptografia</Text>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </View>
     </TouchableWithoutFeedback>
   );

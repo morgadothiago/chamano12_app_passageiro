@@ -8,6 +8,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
 import { BootSplash } from "@/components/ui/BootSplash";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PassengerProfileProvider } from "@/contexts/PassengerProfileContext";
 import { useAuth } from "@/hooks/use-auth";
@@ -53,18 +54,20 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <AuthProvider>
-          <PassengerProfileProvider>
-            <BottomSheetModalProvider>
-              <StatusBar style="dark" />
-              <RootNavigator />
-              <Toast />
-            </BottomSheetModalProvider>
-          </PassengerProfileProvider>
-        </AuthProvider>
-      </GestureHandlerRootView>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <AuthProvider>
+            <PassengerProfileProvider>
+              <BottomSheetModalProvider>
+                <StatusBar style="dark" />
+                <RootNavigator />
+                <Toast />
+              </BottomSheetModalProvider>
+            </PassengerProfileProvider>
+          </AuthProvider>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

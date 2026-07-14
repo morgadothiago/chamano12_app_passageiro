@@ -35,7 +35,13 @@ export function PassengerProfileProvider({ children }: PropsWithChildren) {
       const data = await passengerProfileService.getMe(token);
       setProfile(data);
     } catch {
-      setProfile(null);
+      // Falha na request (rede instável, timeout, 5xx) não significa que o
+      // cadastro está incompleto — antes isso zerava `profile`, e como
+      // `isRegistrationCompleted` deriva de `profile?.cadastroCompleto`, um
+      // passageiro já cadastrado ficava preso na tela de completar-cadastro
+      // (guard raiz em app/_layout.tsx) até a rede se recuperar e ele
+      // reabrir o app. Mantém o último perfil conhecido em vez de descartar.
+      setProfile((prev) => prev);
     } finally {
       setIsLoading(false);
     }

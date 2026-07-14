@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { forwardRef, memo, useCallback, useRef } from "react";
-import { Animated, Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from "react-native-maps";
 import { mapaEstiloMinimalista } from "@/lib/mapa-estilo";
 import type { MotoristaProximo } from "@/lib/api-rides";
 import type { Coordenada } from "@/lib/routes";
-import { colors, radius, shadow } from "@/lib/theme";
+import { colors, radius, shadow, spacing } from "@/lib/theme";
 
 type MapaCorridaProps = {
   coordOrigem: Coordenada | null;
@@ -13,6 +13,7 @@ type MapaCorridaProps = {
   driverLocation: Coordenada | null;
   motoristasProximos?: MotoristaProximo[];
   rota: Coordenada[];
+  etaTexto?: string | null;
   bottomOffset?: number;
   onRecentralizar?: () => void;
   // Padrão Uber/99: quando definido, mostra um pino fixo no centro exato da
@@ -31,6 +32,7 @@ export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
       driverLocation,
       motoristasProximos = [],
       rota,
+      etaTexto,
       bottomOffset = 24,
       onRecentralizar,
       modoSelecaoCentral = null,
@@ -159,6 +161,13 @@ export const MapaCorrida = memo(forwardRef<MapView, MapaCorridaProps>(
             </Marker>
           ))}
         </MapView>
+
+        {etaTexto && (
+          <View style={styles.etaBadge} pointerEvents="none">
+            <Ionicons name="time-outline" size={14} color="#ffffff" />
+            <Text style={styles.etaText}>{etaTexto}</Text>
+          </View>
+        )}
 
         {modoSelecaoCentral && (
           <View pointerEvents="none" style={styles.pinCentralContainer}>
@@ -325,6 +334,26 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 4,
     backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  etaBadge: {
+    position: "absolute",
+    top: 16,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surfaceDark,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+    gap: 6,
+    ...shadow.card,
+    shadowOpacity: 0.25,
+    zIndex: 10,
+  },
+  etaText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "600",
   },
   botaoRecentralizar: {
     position: "absolute",
