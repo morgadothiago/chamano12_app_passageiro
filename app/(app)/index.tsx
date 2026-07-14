@@ -1,4 +1,5 @@
 import { CardEstimativa } from "@/components/card-estimativa";
+import { ChatModal } from "@/components/chat-modal";
 import { FormularioEnderecos } from "@/components/formulario-enderecos";
 import { GatilhoEndereco } from "@/components/gatilho-endereco";
 import { MapaCorrida } from "@/components/mapa-corrida";
@@ -68,12 +69,31 @@ export default function Index() {
   // MapaCorrida (que continua montado atrás) em vez do formulário de texto.
   const [modoMapaAtivo, setModoMapaAtivo] = useState<"origem" | "destino" | null>(null);
 
-  const { state: ride, requestRide, cancelRide, reset: resetRide } = useWebsocketCorrida();
+  const {
+    state: ride,
+    chatMessages,
+    sendChatMessage,
+    requestRide,
+    cancelRide,
+    reset: resetRide,
+  } = useWebsocketCorrida();
   const motoristasProximos = useMotoristasProximos(coordOrigem);
 
   const [modalVisivel, setModalVisivel] = useState(false);
   const [nome, setNome] = useState("");
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>("dinheiro");
+  const [chatVisivel, setChatVisivel] = useState(false);
+  const chatLidasRef = useRef(0);
+  const chatNaoLidas = chatMessages.length - chatLidasRef.current;
+
+  const abrirChat = useCallback(() => {
+    chatLidasRef.current = chatMessages.length;
+    setChatVisivel(true);
+  }, [chatMessages.length]);
+
+  useEffect(() => {
+    if (chatVisivel) chatLidasRef.current = chatMessages.length;
+  }, [chatVisivel, chatMessages.length]);
 
   const abrirBottomSheet = useCallback(() => {
     setBuscaVisivel(true);
@@ -279,9 +299,11 @@ export default function Index() {
               ride={ride}
               enderecoOrigem={enderecoOrigem}
               enderecoDestino={enderecoDestino}
+              chatNaoLidas={chatNaoLidas}
               onChamarMotorista={abrirModalNome}
               onCancelar={handleCancelarCorrida}
               onFinalizarResumo={handleFinalizarResumo}
+              onAbrirChat={abrirChat}
             />
           )}
         </>
@@ -352,6 +374,16 @@ export default function Index() {
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#ffffff" />
         </View>
+      )}
+
+      {(ride.status === "accepted" || ride.status === "started") && ride.driverName && (
+        <ChatModal
+          visible={chatVisivel}
+          driverName={ride.driverName}
+          messages={chatMessages}
+          onSend={sendChatMessage}
+          onClose={() => setChatVisivel(false)}
+        />
       )}
     </View>
   );

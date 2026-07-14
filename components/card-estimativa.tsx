@@ -25,9 +25,11 @@ type CardEstimativaProps = {
   ride: RideState;
   enderecoOrigem: string;
   enderecoDestino: string;
+  chatNaoLidas?: number;
   onChamarMotorista: () => void;
   onCancelar: () => void;
   onFinalizarResumo: () => void;
+  onAbrirChat: () => void;
 };
 
 export const CardEstimativa = memo(function CardEstimativa({
@@ -36,9 +38,11 @@ export const CardEstimativa = memo(function CardEstimativa({
   ride,
   enderecoOrigem,
   enderecoDestino,
+  chatNaoLidas = 0,
   onChamarMotorista,
   onCancelar,
   onFinalizarResumo,
+  onAbrirChat,
 }: CardEstimativaProps) {
   const [expandido, setExpandido] = useState(false);
 
@@ -98,6 +102,20 @@ export const CardEstimativa = memo(function CardEstimativa({
                 </View>
               </View>
             </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.botaoChat}
+              onPress={onAbrirChat}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir chat com o motorista"
+            >
+              <Ionicons name="chatbubble-outline" size={20} color={colors.primary} />
+              {chatNaoLidas > 0 && (
+                <View style={styles.chatBadge}>
+                  <Text style={styles.chatBadgeText}>{chatNaoLidas}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <Ionicons
               name={expandido ? "chevron-down" : "chevron-up"}
               size={20}
@@ -273,6 +291,27 @@ const styles = StyleSheet.create({
   textoCancelar: { color: colors.textSecondary, fontWeight: "700" },
   motoristaContainer: { gap: spacing.md },
   motoristaHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  botaoChat: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    backgroundColor: colors.primaryTranslucent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chatBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.danger,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  chatBadgeText: { color: colors.white, fontWeight: "700", fontSize: 10 },
   motoristaHeader: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },
   motoristaAvatar: {
     width: 48,

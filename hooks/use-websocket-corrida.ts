@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Toast from "react-native-toast-message";
 import { connect, disconnect, getSocket } from "@/lib/websocket";
 import type { Coordenada } from "@/lib/routes";
-import type { FormaPagamento } from "@/types/ride";
+import type { ChatMessage, FormaPagamento } from "@/types/ride";
 
 export type RideStatus =
   | "idle"
@@ -55,6 +55,8 @@ export function useWebsocketCorrida() {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
   useEffect(() => {
     const socket = connect();
 
@@ -66,6 +68,7 @@ export function useWebsocketCorrida() {
       lat: number;
       lng: number;
     }) => {
+      setChatMessages([]);
       setState((prev) => ({
         ...prev,
         status: "accepted",
@@ -109,6 +112,12 @@ export function useWebsocketCorrida() {
       setState((prev) => ({ ...prev, status: "timed_out" }));
     };
 
+    const handleChatMessage = (data: ChatMessage) => {
+      if (stateRef.current.rideId === data.rideId) {
+        setChatMessages((prev) => [...prev, data]);
+      }
+    };
+
     socket.on("ride:accepted", handleAccepted);
     socket.on("ride:driver-location", handleDriverLocation);
     socket.on("ride:started", handleStarted);
@@ -116,6 +125,7 @@ export function useWebsocketCorrida() {
     socket.on("ride:cancelled", handleCancelled);
     socket.on("ride:no-drivers-nearby", handleNoDrivers);
     socket.on("ride:timed-out", handleTimedOut);
+    socket.on("chat:new-message", handleChatMessage);
 
     return () => {
       socket.off("ride:accepted", handleAccepted);
@@ -125,6 +135,7 @@ export function useWebsocketCorrida() {
       socket.off("ride:cancelled", handleCancelled);
       socket.off("ride:no-drivers-nearby", handleNoDrivers);
       socket.off("ride:timed-out", handleTimedOut);
+      socket.off("chat:new-message", handleChatMessage);
     };
   }, []);
 
@@ -174,7 +185,16 @@ export function useWebsocketCorrida() {
       formaPagamentoFinal: null,
       error: null,
     });
+    setChatMessages([]);
   }, []);
 
-  return { state, requestRide, cancelRide, reset };
+  const sendChatMessage = useCallback((texto: string) => {
+    const socket = getSocket();
+    const rideId = stateRef.current.rideId;
+    if (!socket || !rideId || !texto.trim()) return;
+
+    socket.emit("chat:send-message", { rideId, texto: texto.trim() });
+  }, []);
+
+  return { state, chatMessages, sendChatMessage, requestRide, cancelRide, reset };
 }
