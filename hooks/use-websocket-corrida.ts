@@ -119,6 +119,19 @@ export function useWebsocketCorrida() {
       }
     };
 
+    // Sem isso, qualquer rejeição do backend (ex.: "você já possui uma
+    // corrida em andamento") ficava muda pro passageiro — a tela continuava
+    // em "Buscando motorista..." pra sempre, sem nenhum aviso do motivo.
+    const handleException = (err: { message?: string } | string) => {
+      if (stateRef.current.status !== "searching") return;
+      setState((prev) => ({ ...prev, status: "idle" }));
+      Toast.show({
+        type: "error",
+        text1: "Não foi possível pedir a corrida",
+        text2: typeof err === "string" ? err : err?.message,
+      });
+    };
+
     // Restaura a corrida em andamento ao reabrir o app — sem isso o
     // passageiro sempre caía na tela de "pedir corrida" do zero mesmo com
     // uma corrida aceita/iniciada rolando.
@@ -161,6 +174,7 @@ export function useWebsocketCorrida() {
       socket.on("ride:timed-out", handleTimedOut);
       socket.on("chat:new-message", handleChatMessage);
       socket.on("passenger:active-ride", handleActiveRide);
+      socket.on("exception", handleException);
 
       socket.emit("passenger:get-active-ride");
     });
@@ -177,6 +191,7 @@ export function useWebsocketCorrida() {
       socketRef.off("ride:timed-out", handleTimedOut);
       socketRef.off("chat:new-message", handleChatMessage);
       socketRef.off("passenger:active-ride", handleActiveRide);
+      socketRef.off("exception", handleException);
     };
   }, []);
 
