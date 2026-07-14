@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Socket } from "socket.io-client";
 import Toast from "react-native-toast-message";
 import { connect, disconnect, getSocket } from "@/lib/websocket";
 import type { Coordenada } from "@/lib/routes";
@@ -58,7 +59,7 @@ export function useWebsocketCorrida() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
-    const socket = connect();
+    let cancelado = false;
 
     const handleAccepted = (data: {
       rideId: string;
@@ -118,24 +119,64 @@ export function useWebsocketCorrida() {
       }
     };
 
-    socket.on("ride:accepted", handleAccepted);
-    socket.on("ride:driver-location", handleDriverLocation);
-    socket.on("ride:started", handleStarted);
-    socket.on("ride:completed", handleCompleted);
-    socket.on("ride:cancelled", handleCancelled);
-    socket.on("ride:no-drivers-nearby", handleNoDrivers);
-    socket.on("ride:timed-out", handleTimedOut);
-    socket.on("chat:new-message", handleChatMessage);
+    // Restaura a corrida em andamento ao reabrir o app — sem isso o
+    // passageiro sempre caía na tela de "pedir corrida" do zero mesmo com
+    // uma corrida aceita/iniciada rolando.
+    const handleActiveRide = (
+      data: {
+        rideId: string;
+        status: "accepted" | "started";
+        driverId: string;
+        driverName: string;
+        vehicle: string;
+        origem: string;
+        destino: string;
+        valor: number;
+        formaPagamento: FormaPagamento;
+      } | null,
+    ) => {
+      if (!data) return;
+      setState((prev) => ({
+        ...prev,
+        status: data.status,
+        rideId: data.rideId,
+        driverId: data.driverId,
+        driverName: data.driverName,
+        vehicle: data.vehicle,
+      }));
+    };
+
+    let socketRef: Socket | null = null;
+
+    connect().then((socket) => {
+      if (cancelado) return;
+      socketRef = socket;
+
+      socket.on("ride:accepted", handleAccepted);
+      socket.on("ride:driver-location", handleDriverLocation);
+      socket.on("ride:started", handleStarted);
+      socket.on("ride:completed", handleCompleted);
+      socket.on("ride:cancelled", handleCancelled);
+      socket.on("ride:no-drivers-nearby", handleNoDrivers);
+      socket.on("ride:timed-out", handleTimedOut);
+      socket.on("chat:new-message", handleChatMessage);
+      socket.on("passenger:active-ride", handleActiveRide);
+
+      socket.emit("passenger:get-active-ride");
+    });
 
     return () => {
-      socket.off("ride:accepted", handleAccepted);
-      socket.off("ride:driver-location", handleDriverLocation);
-      socket.off("ride:started", handleStarted);
-      socket.off("ride:completed", handleCompleted);
-      socket.off("ride:cancelled", handleCancelled);
-      socket.off("ride:no-drivers-nearby", handleNoDrivers);
-      socket.off("ride:timed-out", handleTimedOut);
-      socket.off("chat:new-message", handleChatMessage);
+      cancelado = true;
+      if (!socketRef) return;
+      socketRef.off("ride:accepted", handleAccepted);
+      socketRef.off("ride:driver-location", handleDriverLocation);
+      socketRef.off("ride:started", handleStarted);
+      socketRef.off("ride:completed", handleCompleted);
+      socketRef.off("ride:cancelled", handleCancelled);
+      socketRef.off("ride:no-drivers-nearby", handleNoDrivers);
+      socketRef.off("ride:timed-out", handleTimedOut);
+      socketRef.off("chat:new-message", handleChatMessage);
+      socketRef.off("passenger:active-ride", handleActiveRide);
     };
   }, []);
 

@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const STORAGE_KEYS = {
   authSession: "@chama12/passageiro/auth-session",
+  deviceId: "@chama12/passageiro/device-id",
 } as const;
 
 export async function getStoredJson<T>(key: string): Promise<T | null> {
