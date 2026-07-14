@@ -1,3 +1,4 @@
+import { AnuncioBanner } from "@/components/anuncio-banner";
 import { CardEstimativa } from "@/components/card-estimativa";
 import { ChatModal } from "@/components/chat-modal";
 import { FormularioEnderecos } from "@/components/formulario-enderecos";
@@ -291,6 +292,8 @@ export default function Index() {
             desabilitado={tecladoAtivo || ride.status !== "idle"}
             onPress={abrirBottomSheet}
           />
+
+          {!estimativa && ride.status === "idle" && <AnuncioBanner />}
 
           {(estimativa || ride.status !== "idle") && (
             <CardEstimativa

@@ -10,9 +10,11 @@ type Opcao = {
   icone: keyof typeof Ionicons.glyphMap;
 };
 
+// "cartao" continua um valor válido de `FormaPagamento` (corridas antigas
+// pagas no cartão ainda existem), só não é mais oferecido como opção nova —
+// pagamento simplificado pra dinheiro/Pix por pedido do cliente.
 const OPCOES: Opcao[] = [
   { valor: "dinheiro", rotulo: "Dinheiro", icone: "cash-outline" },
-  { valor: "cartao", rotulo: "Cartão", icone: "card-outline" },
   { valor: "pix", rotulo: "Pix", icone: "qr-code-outline" },
 ];
 
