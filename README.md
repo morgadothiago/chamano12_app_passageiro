@@ -1,50 +1,24 @@
-# Welcome to your Expo app 👋
+# Chamano12 - App do Passageiro
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicativo mobile (React Native / Expo) voltado para o passageiro dentro do ecossistema Chamano12, um servico de mobilidade urbana com dois aplicativos complementares: este, para o passageiro, e outro para o motorista.
 
-## Get started
+## A ideia
 
-1. Install dependencies
+A ideia do Chamano12 e oferecer uma alternativa de mobilidade urbana com dois apps que conversam entre si: o passageiro solicita a corrida por aqui, e o motorista recebe, aceita e conduz a viagem no outro aplicativo. Este repositorio contem a parte do passageiro: cadastro/login, solicitacao de corrida e acompanhamento da viagem em andamento.
 
-   ```bash
-   npm install
-   ```
+## Como foi desenvolvido
 
-2. Start the app
+O app foi construido com React Native usando Expo e file-based routing. A base do projeto usa contextos (contexts/) para gerenciar estado de autenticacao e da corrida, hooks customizados (hooks/) para regras reutilizaveis, e uma camada lib/ para chamadas de API, em espelho com o app do motorista. Parte do desenvolvimento contou com apoio de um assistente de IA (Claude) como par de programacao, usado para acelerar a escrita de codigo, mantendo comigo as decisoes de fluxo e regras de negocio do app.
 
-   ```bash
-   npx expo start
-   ```
+## Stack
 
-In the output, you'll find options to open the app in a
+React Native, Expo, TypeScript, file-based routing (Expo Router)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Status
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+Em desenvolvimento
 
-## Get a fresh project
+## Rodando o projeto
 
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+npm install
+npx expo start
